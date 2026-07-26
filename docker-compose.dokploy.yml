@@ -1,0 +1,25 @@
+services:
+  bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - path: .env
+        required: false
+      - path: /appdata/runtime.env
+        required: false
+    volumes:
+      - bridge_data:/data
+      - bridge_appdata:/appdata
+    ports:
+      - "${WEB_PORT:-8088}:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  bridge_data:
+  bridge_appdata:

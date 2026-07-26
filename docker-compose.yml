@@ -1,0 +1,31 @@
+services:
+  bridge:
+    build: .
+    container_name: wahoo-garmin-fit-bridge
+    env_file:
+      - path: .env
+        required: false
+      - path: ./appdata/runtime.env
+        required: false
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./data:/data
+      - ./appdata:/appdata
+      - ./real_fit:/real_fit:ro
+    ports:
+      - "${WEB_PORT:-8088}:8080"
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

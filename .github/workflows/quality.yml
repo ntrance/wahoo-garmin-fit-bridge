@@ -1,0 +1,52 @@
+name: Quality and security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev]"
+      - run: ruff check app tests
+      - run: pytest -q
+      - run: bandit -q -ll -r app
+      - run: pip-audit
+      - run: docker build -t wahoo-garmin-fit-bridge:ci .
+      - name: Scan container for high and critical vulnerabilities
+        run: >-
+          docker run --rm
+          -v /var/run/docker.sock:/var/run/docker.sock
+          -v ${{ github.workspace }}/.trivyignore.yaml:/.trivyignore.yaml:ro
+          aquasec/trivy@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e
+          image
+          --scanners vuln
+          --severity HIGH,CRITICAL
+          --ignore-unfixed
+          --ignorefile /.trivyignore.yaml
+          --exit-code 1
+          --no-progress
+          --skip-version-check
+          wahoo-garmin-fit-bridge:ci
+      - name: Scan deployment configuration
+        run: >-
+          docker run --rm
+          -v ${{ github.workspace }}:/work:ro
+          aquasec/trivy@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e
+          config
+          --severity HIGH,CRITICAL
+          --ignorefile /work/.trivyignore.yaml
+          --exit-code 1
+          --skip-version-check
+          /work

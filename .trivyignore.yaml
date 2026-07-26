@@ -1,0 +1,10 @@
+vulnerabilities:
+  - id: GHSA-hrxh-6v49-42gf
+    paths:
+      - "usr/local/bin/rclone"
+    expired_at: 2026-10-31
+    statement: >-
+      rclone 1.74.4 embeds the affected gRPC library, but this bridge only runs
+      the rclone CLI for Dropbox file operations and does not enable a gRPC or
+      xDS service. Remove this exception when an upstream rclone image includes
+      google.golang.org/grpc 1.82.1 or newer.

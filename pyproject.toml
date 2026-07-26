@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wahoo-garmin-fit-bridge"
+version = "0.1.0"
+description = "Dropbox to Fit-File-Faker to Garmin Connect bridge for Wahoo FIT files"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "jinja2>=3.1.0",
+    "python-dotenv>=1.0.0",
+    "python-multipart>=0.0.20",
+    "garmin-fit-sdk>=21.158.0",
+    "garminconnect>=0.3.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "bandit>=1.8,<2",
+    "httpx>=0.27.0",
+    "pip-audit>=2.9,<3",
+    "pytest>=8.0.0",
+    "ruff>=0.12,<1",
+]
+
+[project.scripts]
+wahoo-bridge-hash-password = "app.security_cli:main"
+
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["templates/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

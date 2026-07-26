@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .config-accordion > summary {
+    cursor: pointer;
+    list-style: none;
+  }
+  .config-accordion > summary::-webkit-details-marker {
+    display: none;
+  }
+  .config-accordion > summary::before {
+    align-items: center;
+    color: #212529;
+    content: "\25B6";
+    display: inline-flex;
+    font-size: 1.35rem;
+    font-weight: 700;
+    height: 1.5rem;
+    justify-content: center;
+    line-height: 1;
+    margin-right: 0.25rem;
+    transition: transform 150ms ease;
+    width: 1.5rem;
+  }
+  .config-accordion[open] > summary::before {
+    transform: rotate(90deg);
+  }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Config</h1>
+  <span class="badge {{ 'text-bg-warning' if settings.dry_run else 'text-bg-success' }}">
+    {{ "Dry run" if settings.dry_run else "Live upload" }}
+  </span>
+</div>
+
+{% if setup_message %}
+<div class="alert {{ 'alert-success' if setup_message.ok else 'alert-warning' }}">
+  <strong>{{ setup_message.title }}</strong>
+  <pre class="mb-0 mt-2" style="white-space: pre-wrap;">{{ setup_message.output }}</pre>
+</div>
+{% endif %}
+
+{% set connections_complete = setup.dropbox.configured and setup.garmin.configured %}
+<details class="config-accordion border rounded mb-4" {{ "open" if settings.dry_run or not connections_complete else "" }}>
+  <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
+    <h2 class="h5 mb-0">Connection Settings</h2>
+    <span class="d-flex align-items-center justify-content-end gap-2 flex-wrap">
+      <span class="badge {{ 'text-bg-success' if connections_complete else 'text-bg-warning' }}">
+        {{ "Setup complete" if connections_complete else "Setup incomplete" }}
+      </span>
+      <span class="badge {{ 'text-bg-success' if setup.dropbox.configured else 'text-bg-warning' }}">
+        Dropbox: {{ "Configured" if setup.dropbox.configured else "Needs setup" }}
+      </span>
+      <span class="badge {{ 'text-bg-success' if setup.garmin.configured else 'text-bg-warning' }}">
+        Garmin: {{ "Configured" if setup.garmin.configured else "Needs setup" }}
+      </span>
+      <span class="badge {{ 'text-bg-warning' if settings.dry_run else 'text-bg-success' }}">
+        {{ "Dry run" if settings.dry_run else "Live upload" }}
+      </span>
+    </span>
+  </summary>
+  <form method="post" action="/config/save" class="border-top p-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% if connections_complete %}
+    <div class="alert alert-success py-2">
+      Dropbox and Garmin Upload are configured.
+    </div>
+    {% else %}
+    <div class="alert alert-warning py-2">
+      <strong>Setup incomplete.</strong>
+      {% if not setup.dropbox.configured %}
+      <span class="d-block">Dropbox still needs to be configured.</span>
+      {% endif %}
+      {% if not setup.garmin.configured %}
+      <span class="d-block">Garmin Upload still needs to be configured.</span>
+      {% endif %}
+    </div>
+    {% endif %}
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label" for="rclone_remote">Dropbox remote</label>
+        <input class="form-control" id="rclone_remote" name="rclone_remote" value="{{ setup.dropbox.remote }}">
+      </div>
+      <div class="col-md-8">
+        <label class="form-label" for="dropbox_wahoo_path">Wahoo Dropbox path</label>
+        <input class="form-control" id="dropbox_wahoo_path" name="dropbox_wahoo_path" value="{{ setup.dropbox.path }}">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="garmin_profile_name">Garmin profile</label>
+        <input class="form-control" id="garmin_profile_name" name="garmin_profile_name" value="{{ setup.garmin.profile }}">
+      </div>
+      <div class="col-md-8">
+        <label class="form-label" for="garmin_unit_id">Garmin Unit ID</label>
+        <input class="form-control" id="garmin_unit_id" name="garmin_unit_id" value="{{ settings.garmin_unit_id }}" autocomplete="off">
+      </div>
+      <div class="col-12">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="dry_run" name="dry_run" {{ "checked" if settings.dry_run else "" }}>
+          <label class="form-check-label" for="dry_run">Dry-run mode</label>
+        </div>
+      </div>
+    </div>
+    <div class="mt-3">
+      <button class="btn btn-primary" type="submit">Save Settings</button>
+    </div>
+  </form>
+</details>
+
+<div class="mb-4">
+  <details class="config-accordion border rounded mb-3" {{ "open" if dropbox_oauth or not setup.dropbox.configured else "" }}>
+    <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
+      <h2 class="h5 mb-0">Dropbox</h2>
+      <span class="d-flex align-items-center gap-2">
+        <span class="badge {{ 'text-bg-success' if setup.dropbox.configured else 'text-bg-warning' }}">
+          {{ "Configured" if setup.dropbox.configured else "Needs setup" }}
+        </span>
+      </span>
+    </summary>
+    <div class="border-top p-3">
+      <div class="alert alert-info py-2">
+        Your Wahoo activities must be shared to Dropbox before this bridge can import them.
+        Enable Dropbox and Auto-share in the Wahoo app; existing activities may need to be shared manually.
+        <a
+          class="alert-link"
+          href="https://support.wahoofitness.com/hc/en-us/articles/14467471126802-Authorized-Apps-Wahoo-app"
+          target="_blank"
+          rel="noopener noreferrer"
+        >View Wahoo's Authorized Apps instructions</a>.
+      </div>
+      <a
+        class="btn btn-primary d-inline-flex align-items-center gap-2 mb-3"
+        href="https://www.dropbox.com/register"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Sign up for Dropbox in a new tab"
+      >
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M6 1.807L0 5.629l6 3.822 6.001-3.822L6 1.807zM18 1.807l-6 3.822 6 3.822 6-3.822-6-3.822zM0 13.274l6 3.822 6.001-3.822L6 9.452l-6 3.822zM18 9.452l-6 3.822 6 3.822 6-3.822-6-3.822zM6 18.371l6.001 3.822 6-3.822-6-3.822L6 18.371z"/>
+        </svg>
+        <span>Sign up for Dropbox</span>
+      </a>
+      <form method="post" action="/config/dropbox/oauth/start" class="mb-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-success btn-sm" type="submit">Start Dropbox Setup</button>
+      </form>
+      {% if dropbox_oauth %}
+      <div class="border rounded p-3 mb-3 bg-light">
+        <div class="mb-2">
+          <strong>Step 1:</strong>
+          <a href="{{ dropbox_oauth.authorization_url }}" target="_blank" rel="noopener">Open Dropbox authorization</a>
+        </div>
+        <div class="mb-2">
+          <strong>Step 2:</strong>
+          After Dropbox redirects to a `localhost:53682` page, copy the full address from the browser bar.
+        </div>
+        <form method="post" action="/config/dropbox/oauth/complete">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="rclone_remote" value="{{ setup.dropbox.remote }}">
+          <input type="hidden" name="dropbox_wahoo_path" value="{{ setup.dropbox.path }}">
+          <label class="form-label" for="dropbox_callback_url">Returned localhost URL</label>
+          <textarea class="form-control" id="dropbox_callback_url" name="dropbox_callback_url" rows="2" placeholder="http://localhost:53682/?state=...&code=..."></textarea>
+          <button class="btn btn-primary btn-sm mt-2" type="submit">Finish Dropbox Setup</button>
+        </form>
+        <form method="post" action="/config/dropbox/oauth/cancel" class="mt-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-outline-secondary btn-sm" type="submit">Cancel Dropbox Setup</button>
+        </form>
+      </div>
+      {% endif %}
+      <form method="post" action="/config/dropbox/save" class="mb-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="form-label" for="dropbox_remote_setup">Remote</label>
+            <input class="form-control" id="dropbox_remote_setup" name="rclone_remote" value="{{ setup.dropbox.remote }}">
+          </div>
+          <div class="col-md-8">
+            <label class="form-label" for="dropbox_path_setup">Wahoo path</label>
+            <input class="form-control" id="dropbox_path_setup" name="dropbox_wahoo_path" value="{{ setup.dropbox.path }}">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="rclone_token_json">Dropbox token JSON</label>
+            <textarea class="form-control" id="rclone_token_json" name="rclone_token_json" rows="4" placeholder='{"access_token":"...","token_type":"bearer",...}'></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="rclone_config_text">Or paste full rclone config</label>
+            <textarea class="form-control" id="rclone_config_text" name="rclone_config_text" rows="5" placeholder="[dropbox]&#10;type = dropbox&#10;token = {...}"></textarea>
+          </div>
+        </div>
+        <div class="mt-3">
+          <button class="btn btn-primary btn-sm" type="submit">Save Dropbox Auth</button>
+        </div>
+      </form>
+      <dl class="mb-3">
+        <dt>Saved config file</dt>
+        <dd><code>{{ setup.dropbox.config_path }}</code></dd>
+      </dl>
+      <form method="post" action="/config/test-dropbox">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-outline-primary btn-sm" type="submit">Test Dropbox</button>
+      </form>
+    </div>
+  </details>
+
+  <details class="config-accordion border rounded" {{ "open" if setup.garmin.profile_error or setup.garmin.cooldown or not setup.garmin.configured else "" }}>
+    <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
+      <h2 class="h5 mb-0">Garmin Upload</h2>
+      <span class="d-flex align-items-center gap-2">
+        <span class="badge {{ 'text-bg-success' if setup.garmin.configured else 'text-bg-warning' }}">
+          {{ "Configured" if setup.garmin.configured else "Needs setup" }}
+        </span>
+      </span>
+    </summary>
+    <div class="border-top p-3">
+
+      {% if setup.garmin.configured %}
+      <div class="border rounded p-3 mb-3 bg-light">
+        <div class="row g-2">
+          <div class="col-md-6">
+            <div class="text-secondary small">Connected Garmin account</div>
+            <div class="fw-semibold">{{ setup.garmin.username }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-secondary small">Garmin device identity</div>
+            <div class="fw-semibold">{{ setup.garmin.device_target_summary }}</div>
+            {% if setup.garmin.matched_detected_device_label %}
+            <div class="small text-secondary">Matched from real FIT: {{ setup.garmin.matched_detected_device_label }}</div>
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            <div class="text-secondary small">Password</div>
+            <div>{{ "Saved" if setup.garmin.password_saved else "Not saved" }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-secondary small">Login token</div>
+            <div>{{ "Saved" if setup.garmin.token_saved else "Not saved" }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-secondary small">Upload profile</div>
+            <div>{{ setup.garmin.profile }}</div>
+          </div>
+        </div>
+      </div>
+      {% elif setup.garmin.profile_error %}
+      <div class="alert alert-warning py-2">{{ setup.garmin.profile_error }}</div>
+      {% else %}
+      <div class="alert alert-info py-2">
+        Scan or upload one genuine Garmin FIT file, then save the Garmin account and profile below.
+      </div>
+      {% endif %}
+
+      <div class="border rounded p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+          <div>
+            <h3 class="h6 mb-1">Identify Garmin Device</h3>
+            <div class="text-secondary small">Use a real Garmin FIT file so uploads look like the selected watch.</div>
+          </div>
+          <span class="badge {{ 'text-bg-success' if detected_devices else 'text-bg-secondary' }}">
+            {{ detected_devices|length }} found
+          </span>
+        </div>
+        <form method="post" action="/config/garmin/upload-real-fit" enctype="multipart/form-data" class="mb-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label class="form-label" for="real_fit_file">From a real Garmin FIT File</label>
+          <input class="form-control form-control-sm" id="real_fit_file" name="real_fit_file" type="file" accept=".fit">
+          <button class="btn btn-outline-primary btn-sm mt-2" type="submit">Upload and Scan For Garmin Device</button>
+        </form>
+        <form method="post" action="/config/garmin/scan-real-fit">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-outline-primary btn-sm" type="submit">Scan real_fit Folder</button>
+        </form>
+      </div>
+
+      <form method="post" action="/config/garmin/save" class="mb-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <h3 class="h6 mb-2">Garmin Account and Upload Profile</h3>
+        <div class="row g-2">
+          <div class="col-12">
+            <label class="form-label" for="detected_device_id">Garmin device target</label>
+            <select class="form-select" id="detected_device_id" name="detected_device_id">
+              <option value="">Use manual values below</option>
+              {% if detected_devices %}
+              <optgroup label="From your genuine Garmin FIT file">
+              {% for device in detected_devices %}
+              <option value="{{ device.id }}" {{ "selected" if device.id == setup.garmin.detected_device_id else "" }}>{{ device.label }}</option>
+              {% endfor %}
+              </optgroup>
+              {% endif %}
+              <optgroup label="Fallback presets">
+              {% for device in garmin_presets %}
+              <option value="{{ device.id }}" {{ "selected" if device.id == setup.garmin.detected_device_id else "" }}>{{ device.label }}</option>
+              {% endfor %}
+              </optgroup>
+            </select>
+            <div class="form-text">Use a genuine Garmin FIT device profile where possible, or enter the device values manually.</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="garmin_username">Garmin email</label>
+            <input class="form-control" id="garmin_username" name="garmin_username" value="{{ setup.garmin.username }}" autocomplete="username">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="garmin_password">Garmin password</label>
+            <input
+              class="form-control"
+              id="garmin_password"
+              name="garmin_password"
+              type="password"
+              autocomplete="current-password"
+              placeholder="{{ 'Saved - leave blank to keep current password' if setup.garmin.password_saved else '' }}"
+            >
+          </div>
+          <div class="col-md-5">
+            <label class="form-label" for="garmin_profile_setup">Profile name</label>
+            <input class="form-control" id="garmin_profile_setup" name="garmin_profile_name" value="{{ setup.garmin.profile }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="garmin_unit_id_setup">Unit ID</label>
+            <input class="form-control" id="garmin_unit_id_setup" name="garmin_unit_id" value="{{ setup.garmin.unit_id }}" inputmode="numeric">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="garmin_manufacturer_id">Manufacturer ID</label>
+            <input class="form-control" id="garmin_manufacturer_id" name="garmin_manufacturer_id" value="{{ setup.garmin.manufacturer_id }}" inputmode="numeric">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="garmin_product_id">Product ID</label>
+            <input class="form-control" id="garmin_product_id" name="garmin_product_id" value="{{ setup.garmin.product_id }}" placeholder="From a real Fenix FIT file" inputmode="numeric">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="garmin_software_version">Software version</label>
+            <input class="form-control" id="garmin_software_version" name="garmin_software_version" value="{{ setup.garmin.software_version }}" placeholder="Optional" inputmode="numeric">
+          </div>
+        </div>
+        <div class="mt-3">
+          <button class="btn btn-primary btn-sm" type="submit">Save Garmin Upload Profile</button>
+        </div>
+      </form>
+      <div class="border rounded p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+          <div>
+            <h3 class="h6 mb-1">Garmin Session Upload</h3>
+            <div class="text-secondary small">The bridge converts each Wahoo FIT with the Garmin FIT SDK, then uploads it with a saved Garmin session token.</div>
+          </div>
+          <span class="badge {{ 'text-bg-success' if setup.garmin.token_saved else 'text-bg-warning' }}">
+            {{ "Token found" if setup.garmin.token_saved else "No token yet" }}
+          </span>
+        </div>
+        <form method="post" action="/config/garmin/session" class="mb-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-outline-primary btn-sm" type="submit">Create Garmin Session</button>
+          <span class="small text-secondary ms-2">Uses the saved Garmin email/password and stores the token here for future uploads.</span>
+        </form>
+        {% if setup.garmin.cooldown %}
+        <form method="post" action="/config/garmin/clear-pause">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="alert alert-warning py-2 small" role="alert">
+            <div class="mb-2">{{ setup.garmin.cooldown.message }}</div>
+            <button class="btn btn-warning btn-sm" type="submit">I changed network - clear pause</button>
+          </div>
+        </form>
+        {% endif %}
+        <div class="small text-secondary">Upload path: the native Wahoo converter applies the selected Garmin device identity, then uploads through Garmin Connect using the token folder below.</div>
+      </div>
+      <dl class="mb-3 small">
+        <dt>Config folder</dt>
+        <dd><code>{{ setup.garmin.config_path }}</code></dd>
+        <dt>Login token folder</dt>
+        <dd><code>{{ setup.garmin.token_dir }}</code></dd>
+        <dt>Real FIT folder</dt>
+        <dd><code>{{ settings.real_fit_dir }}</code></dd>
+      </dl>
+      <form method="post" action="/config/test-garmin">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-outline-primary btn-sm" type="submit">Check Garmin Upload</button>
+      </form>
+    </div>
+  </details>
+</div>
+
+<section class="border rounded p-3 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="h5 mb-0">Web Security</h2>
+    <span class="badge {{ 'text-bg-success' if settings.web_auth_enabled else 'text-bg-warning' }}">
+      {{ "Protected" if settings.web_auth_enabled else "Open" }}
+    </span>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-3">
+      <div class="text-secondary small">Password storage</div>
+      <div>{{ "Hashed" if settings.web_password_hash else "Plain .env fallback" }}</div>
+    </div>
+    <div class="col-md-3">
+      <div class="text-secondary small">Session cookie</div>
+      <div>{{ "Secure HTTPS only" if settings.session_cookie_secure else "Local HTTP allowed" }}</div>
+    </div>
+    <div class="col-md-3">
+      <div class="text-secondary small">Session lifetime</div>
+      <div>{{ settings.session_max_age_seconds }} seconds</div>
+    </div>
+    <div class="col-md-3">
+      <div class="text-secondary small">Login limit</div>
+      <div>{{ settings.login_rate_limit_attempts }} attempts</div>
+    </div>
+  </div>
+  <div class="mt-3">
+    <code>docker compose run --rm bridge wahoo-bridge-hash-password</code>
+  </div>
+</section>
+
+<details class="config-accordion border rounded mb-4">
+  <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
+    <h2 class="h5 mb-0">Current Runtime</h2>
+  </summary>
+  <div class="border-top p-3">
+    <table class="table table-sm mb-0">
+      <tbody>
+        {% for key, value in config.items() %}
+        <tr>
+          <th class="w-25">{{ key }}</th>
+          <td><code>{{ value }}</code></td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <th>Runtime config</th>
+          <td><code>{{ setup.runtime.runtime_config_path }}</code></td>
+        </tr>
+        <tr>
+          <th>Restart command</th>
+          <td><code>{{ setup.runtime.restart_command }}</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endblock %}

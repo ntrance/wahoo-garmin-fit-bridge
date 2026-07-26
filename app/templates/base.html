@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Wahoo to Garmin Bridge</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    >
+    <style>
+      .navbar-brand-logo {
+        display: block;
+        height: 46px;
+        width: auto;
+      }
+      @media (max-width: 575.98px) {
+        .navbar-brand-logo {
+          height: 38px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-sm bg-body-tertiary border-bottom">
+      <div class="container">
+        <a class="navbar-brand py-0" href="/" aria-label="Wahoo Garmin Bridge dashboard">
+          <img
+            class="navbar-brand-logo"
+            src="/static/wahoo-garmin-bridge-logo.png"
+            width="137"
+            height="46"
+            alt="Wahoo Garmin Bridge"
+          >
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#primaryNavigation"
+          aria-controls="primaryNavigation"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="primaryNavigation">
+          <div class="navbar-nav ms-sm-3">
+            <a class="nav-link" href="/">Dashboard</a>
+            <a class="nav-link" href="/config">Config</a>
+            <a class="nav-link" href="/logs">Logs</a>
+          </div>
+          {% if settings.web_auth_enabled and authenticated %}
+          <form method="post" action="/logout" class="ms-sm-auto mt-3 mt-sm-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="btn btn-outline-secondary btn-sm" type="submit">Log out</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </nav>
+    <main class="container py-4">
+      {% block content %}{% endblock %}
+    </main>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+      crossorigin="anonymous"
+    ></script>
+  </body>
+</html>

@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Activities</h1>
+  <div class="d-flex gap-2">
+    {% if stats.get("dry_run", 0) %}
+    <form method="post" action="/activities/confirm-imported" onsubmit="return confirm('Confirm these imported activities are already in Garmin Connect?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-outline-secondary btn-sm" type="submit">Confirm imported history</button>
+    </form>
+    {% endif %}
+    <form method="post" action="/rescan">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-primary btn-sm" type="submit">Rescan</button>
+    </form>
+  </div>
+</div>
+
+{% if dashboard_message %}
+<div class="alert {{ 'alert-success' if dashboard_message.ok else 'alert-warning' }}">
+  <strong>{{ dashboard_message.title }}</strong>
+  <pre class="mb-0 mt-2" style="white-space: pre-wrap;">{{ dashboard_message.output }}</pre>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+  {% for label, key in [("Total", "total"), ("Uploaded", "uploaded"), ("Already on Garmin", "already_on_garmin"), ("Failed", "failed"), ("Duplicate", "duplicate"), ("Pending", "new")] %}
+  <div class="col-6 col-md-2">
+    <div class="border rounded p-3">
+      <div class="text-secondary small">{{ label }}</div>
+      <div class="h4 mb-0">{{ stats.get(key, 0) }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if cleanup_activities %}
+<div class="mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="h5 mb-0">Dropbox cleanup</h2>
+    <span class="text-secondary small">{{ cleanup_activities|length }} failed or duplicate file(s)</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Filename</th>
+          <th>Status</th>
+          <th>Start time</th>
+          <th>Distance</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for activity in cleanup_activities %}
+        <tr>
+          <td><a href="/activity/{{ activity.id }}">{{ activity.id }}</a></td>
+          <td>{{ activity.filename }}</td>
+          <td><span class="badge text-bg-warning">{{ activity.status }}</span></td>
+          <td>{{ activity.activity_start_time or "" }}</td>
+          <td>
+            {% if activity.total_distance_meters is not none %}
+            {{ "%.2f"|format(activity.total_distance_meters / 1000) }} km
+            {% endif %}
+          </td>
+          <td>
+            <form method="post" action="/activity/{{ activity.id }}/delete-dropbox" onsubmit="return confirm('Delete this FIT file from Dropbox? This cannot be undone here.');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="next" value="/">
+              <button class="btn btn-outline-danger btn-sm" type="submit">Delete Dropbox</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Filename</th>
+        <th>Status</th>
+        <th>Start time</th>
+        <th>Distance</th>
+        <th>Retries</th>
+        <th>Seen</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for activity in activities %}
+      <tr>
+        <td><a href="/activity/{{ activity.id }}">{{ activity.id }}</a></td>
+        <td>{{ activity.filename }}</td>
+        <td>
+          <span class="badge text-bg-secondary">
+            {{ "already on Garmin" if activity.status == "already_on_garmin" else activity.status }}
+          </span>
+        </td>
+        <td>{{ activity.activity_start_time or "" }}</td>
+        <td>
+          {% if activity.total_distance_meters is not none %}
+          {{ "%.2f"|format(activity.total_distance_meters / 1000) }} km
+          {% endif %}
+        </td>
+        <td>{{ activity.retry_count }}</td>
+        <td>{{ activity.first_seen_at }}</td>
+        <td>
+          {% if activity.status in ["failed", "duplicate"] %}
+          <form method="post" action="/activity/{{ activity.id }}/delete-dropbox" onsubmit="return confirm('Delete this FIT file from Dropbox? This cannot be undone here.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="next" value="/">
+            <button class="btn btn-outline-danger btn-sm" type="submit">Delete Dropbox</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="text-secondary">No FIT files seen yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

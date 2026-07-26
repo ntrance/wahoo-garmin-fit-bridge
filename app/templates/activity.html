@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">{{ activity.filename }}</h1>
+  <div class="d-flex gap-2">
+    <form method="post" action="/activity/{{ activity.id }}/retry">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-primary btn-sm" type="submit">Retry</button>
+    </form>
+    <form method="post" action="/activity/{{ activity.id }}/reprocess">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-outline-primary btn-sm" type="submit">Reprocess</button>
+    </form>
+    <form method="post" action="/activity/{{ activity.id }}/ignore">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-outline-secondary btn-sm" type="submit">Ignore</button>
+    </form>
+    {% if activity.status in ["failed", "duplicate"] %}
+    <form method="post" action="/activity/{{ activity.id }}/delete-dropbox" onsubmit="return confirm('Delete this FIT file from Dropbox? This cannot be undone here.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="next" value="/activity/{{ activity.id }}">
+      <button class="btn btn-outline-danger btn-sm" type="submit">Delete Dropbox</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if activity_message %}
+<div class="alert {{ 'alert-success' if activity_message.ok else 'alert-warning' }}">
+  <strong>{{ activity_message.title }}</strong>
+  <pre class="mb-0 mt-2" style="white-space: pre-wrap;">{{ activity_message.output }}</pre>
+</div>
+{% endif %}
+
+<section class="border rounded p-3 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h5 mb-0">FIT Preview</h2>
+    {% if preview.available %}
+    <span class="badge text-bg-success">Loaded</span>
+    {% else %}
+    <span class="badge text-bg-warning">No preview</span>
+    {% endif %}
+  </div>
+  {% if preview.message %}
+  <div class="alert {{ 'alert-info' if preview.available else 'alert-warning' }} py-2">{{ preview.message }}</div>
+  {% endif %}
+  {% if preview.summary %}
+  <div class="row g-2 mb-3">
+    {% for label, value in preview.summary.items() %}
+    <div class="col-6 col-md-3">
+      <div class="border rounded p-2 h-100">
+        <div class="text-secondary small">{{ label }}</div>
+        <div class="fw-semibold">{{ value }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if preview.route_svg %}
+  <div class="mb-3">{{ preview.route_svg | safe }}</div>
+  {% endif %}
+  {% if preview.stacked_chart_svg %}
+  <div class="border rounded p-2">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h3 class="h6 mb-0">Speed, Power, Heart Rate</h3>
+      <span class="text-secondary small">Elevation profile shown in green behind each graph</span>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mb-2">
+      {% for metric in preview.metrics %}
+      <span class="badge text-bg-light border text-secondary">
+        {{ metric.label }} min {{ metric.min }} {{ metric.unit }} · avg {{ metric.avg }} {{ metric.unit }} · max {{ metric.max }} {{ metric.unit }}
+      </span>
+      {% endfor %}
+    </div>
+    {{ preview.stacked_chart_svg | safe }}
+  </div>
+  {% endif %}
+</section>
+
+<table class="table table-sm">
+  <tbody>
+    {% for key, value in activity.items() %}
+    <tr>
+      <th class="w-25">{{ key }}</th>
+      <td><code>{{ value if value is not none else "" }}</code></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
