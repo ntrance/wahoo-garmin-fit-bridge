@@ -150,7 +150,7 @@ def test_config_page_shows_auth_paths(settings):
         response = client.get("/config")
 
     assert response.status_code == 200
-    assert 'src="/static/wahoo-garmin-bridge-logo.png"' in response.text
+    assert 'src="/static/fit-to-garmin-bridge-logo.svg"' in response.text
     assert "navbar-expand-sm" in response.text
     assert "navbar-toggler" in response.text
     assert '<a class="nav-link" href="/health">Health</a>' not in response.text
@@ -218,10 +218,10 @@ def test_config_never_renders_igpsport_password_or_token(settings):
 def test_navbar_logo_asset_is_served(settings):
     app = create_app(settings, start_background=False)
     with TestClient(app) as client:
-        response = client.get("/static/wahoo-garmin-bridge-logo.png")
+        response = client.get("/static/fit-to-garmin-bridge-logo.svg")
 
     assert response.status_code == 200
-    assert response.headers["content-type"] == "image/png"
+    assert response.headers["content-type"] == "image/svg+xml"
 
 
 def test_sync_dropbox_to_incoming_copies_fit_files(settings, monkeypatch):

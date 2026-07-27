@@ -1,55 +1,73 @@
-# FIT to Garmin Bridge
+<p align="center">
+  <img src="assets/fit-to-garmin-bridge-logo.svg" width="720" alt="FIT to Garmin Bridge">
+</p>
 
-An automated, self-hosted Docker service that imports original FIT activities from
-one or more sources, converts their device metadata to a selected Garmin identity,
-and uploads them to Garmin Connect.
+<p align="center">
+  Automatically sync Wahoo/ELEMNT and iGPSPORT activities into Garmin Connect.
+</p>
 
-Supported sources are **Wahoo/ELEMNT via Dropbox** and **iGPSPORT Cloud**. Either
-source or both can run at the same time. Once configured, new activities are
-handled automatically so they can appear in Garmin Connect and, where Garmin
-considers them eligible, contribute to statistics, challenges, and badges.
+<p align="center">
+  <a href="https://github.com/ntrance/wahoo-garmin-fit-bridge/actions/workflows/quality.yml"><img alt="Quality and security" src="https://github.com/ntrance/wahoo-garmin-fit-bridge/actions/workflows/quality.yml/badge.svg"></a>
+  <a href="https://github.com/ntrance/wahoo-garmin-fit-bridge/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/ntrance/wahoo-garmin-fit-bridge"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/ntrance/wahoo-garmin-fit-bridge"></a>
+</p>
+
+FIT to Garmin Bridge is a self-hosted Docker service for people who record rides
+outside the Garmin ecosystem but still want those activities in Garmin Connect.
+It watches your enabled sources, downloads each original FIT file, applies the
+identity of a Garmin device you own, prevents duplicate imports, and uploads the
+result automatically.
+
+Supported sources:
+
+| Source | Automatic sync | How activities are obtained |
+| --- | --- | --- |
+| Wahoo / ELEMNT | Yes | Wahoo shares activities to Dropbox |
+| iGPSPORT | Yes | The bridge polls your iGPSPORT Cloud account |
+
+Enable either source or both. They run independently and feed the same protected
+processing pipeline.
 
 [![Support this project on Ko-fi](https://storage.ko-fi.com/cdn/kofi3.png?v=3)](https://ko-fi.com/ntr4nce)
 
 > [!IMPORTANT]
 > This is an unofficial community project. It is not affiliated with or supported
-> by Wahoo, iGPSPORT, Garmin, or Dropbox. The Garmin upload and iGPSPORT Cloud
-> integrations use unofficial APIs that may change and temporarily break this
-> workflow.
+> by Wahoo, iGPSPORT, Garmin, or Dropbox. Garmin Connect and iGPSPORT Cloud do not
+> provide supported public APIs for this workflow, so upstream changes may
+> temporarily interrupt syncing.
 
 ## Features
 
-- Independently polls Wahoo/Dropbox and iGPSPORT Cloud at source-specific intervals.
-- Reuses iGPSPORT and Garmin sessions instead of signing in for every activity.
-- Applies rate-limit handling, bounded retries, and exponential cloud backoff.
-- Starts in dry-run mode so setup can be checked without uploading.
-- Identifies a Garmin device from one genuine Garmin FIT file.
-- Rewrites Wahoo FIT metadata with the Garmin FIT SDK.
-- Reuses a persisted Garmin Connect session instead of signing in per activity.
-- Prevents repeat uploads across sources using external IDs, SHA256, FIT start
-  time, filename, file size, stored history, and Garmin conflict responses.
-- Tracks uploaded, duplicate, failed, ignored, and dry-run activities in SQLite.
-- Provides a password-protected dashboard with retry, reprocess, delete, logs,
-  route preview, and activity charts.
+- Automatically polls Wahoo/Dropbox and iGPSPORT Cloud at separate intervals.
+- Allows Wahoo and iGPSPORT to run together in one container.
+- Uses original FIT activity data and rewrites device metadata with the Garmin FIT SDK.
+- Identifies the target Garmin identity from one genuine Garmin FIT activity.
+- Reuses encrypted transport and persisted Garmin/iGPSPORT sessions.
+- Handles cloud rate limits with bounded retries and exponential backoff.
+- Prevents repeat uploads using source IDs, remote metadata, SHA256, FIT start
+  time, filename, size, stored history, and Garmin duplicate responses.
+- Starts in dry-run mode and provides bounded historical iGPSPORT imports.
+- Includes a password-protected dashboard, activity details, route preview,
+  charts, logs, retries, reprocessing, and cleanup controls.
+- Stores configuration and activity history in persistent Docker volumes.
 
 ## How It Works
 
 ```text
-Wahoo/ELEMNT -> Dropbox ----\
-                             \
-                              FIT to Garmin Bridge
-                             /
-iGPSPORT device -> Cloud ---/
-    |
-    | deduplicate -> Garmin FIT SDK rewrite -> upload
-    v
-Garmin Connect
+Wahoo / ELEMNT  --> Dropbox ----\
+                                  \
+                                   FIT to Garmin Bridge
+                                  /        |
+iGPSPORT device --> Cloud -------/         |
+                                            v
+                          deduplicate -> rewrite -> upload
+                                            |
+                                            v
+                                      Garmin Connect
 ```
 
-Every source feeds the same incoming FIT, deduplication, rewrite, and upload
-pipeline. Normal polling never deletes remote activities. Dropbox deletion occurs
-only through an explicit administrator action; iGPSPORT remote deletion is not
-implemented.
+Normal polling does not delete remote activities. Dropbox deletion only occurs
+after an explicit administrator action. iGPSPORT remote deletion is not supported.
 
 ## Requirements
 
@@ -58,8 +76,8 @@ implemented.
 - A Garmin Connect account
 - One genuine FIT activity from the Garmin device identity you want to use
 
-A genuine FIT file can contain device identifiers, timestamps, and location
-history. Treat it as private data and never commit it to Git.
+FIT files can contain device identifiers, timestamps, and location history. Treat
+them as private data and never commit them to Git.
 
 ## Quick Start
 
@@ -78,24 +96,24 @@ SESSION_SECRET_KEY=replace-with-a-separate-long-random-value
 DRY_RUN=true
 ```
 
-Generate a session secret with:
+Generate the session secret with:
 
 ```bash
 openssl rand -hex 32
 ```
 
-Start the service:
+Start the bridge:
 
 ```bash
 docker compose up -d --build
 ```
 
-Open `http://localhost:8088`, sign in, and keep dry-run mode enabled until every
-enabled source, the Garmin device, and the Garmin session show as configured.
+Open `http://localhost:8088`, sign in, and keep dry-run mode enabled until the
+source and Garmin sections all report that setup is complete.
 
-## Configure Dropbox
+## Configure Wahoo and Dropbox
 
-First enable Dropbox activity sharing in the Wahoo app:
+First enable Dropbox activity sharing in the Wahoo app using the
 [Wahoo Authorized Apps guide](https://support.wahoofitness.com/hc/en-us/articles/14467471126802-Authorized-Apps-Wahoo-app).
 
 Then open **Config > Dropbox**:
@@ -106,76 +124,80 @@ Then open **Config > Dropbox**:
    the complete address from the browser bar.
 4. Paste it into **Returned localhost URL** and finish setup.
 5. Select **Test Dropbox**.
+6. Enable **Wahoo / Dropbox** under **Connection Settings**.
 
-The rclone configuration is stored in the persistent `/appdata` volume.
+The rclone configuration is stored in the persistent `/appdata` volume. New
+Wahoo activities shared to Dropbox are then imported automatically.
 
-## Configure iGPSPORT Cloud
+## Configure iGPSPORT
 
 Open **Config > Connection Settings**, enable **iGPSPORT Cloud**, and save. Then
 open **Config > iGPSPORT Cloud**:
 
 1. Enter the iGPSPORT account identifier and password.
-2. Keep the default API base URL unless the account requires another region.
-3. Keep **Only activities recorded after enabling iGPSPORT** for a safe first run.
+2. Select the correct account region.
+3. Keep **Only activities recorded after enabling iGPSPORT** for the first sync.
 4. Save the profile and select **Test iGPSPORT login**.
-5. Select **Sync now**, or **Sync all enabled sources now**.
+5. Select **Sync now**.
 
-The password is written only to `/appdata/igpsport/profile.json`; it is never
-stored in `runtime.env`, SQLite, logs, or rendered HTML. The access token is stored
-separately in `/appdata/igpsport/session.json`. Both files use owner-only
-permissions. Leaving the password field blank preserves the saved password.
+New iGPSPORT activities are polled automatically every 15 minutes by default.
+The source reuses its saved session, stops when it reaches a known activity,
+downloads only unknown FIT files, and backs off after API or rate-limit failures.
 
-iGPSPORT polls every 15 minutes by default, never automatically more often than
-five minutes, and initially reads only the newest activity page. It stops at a
-known ride ID, requests download URLs only for unknown rides, caps automatic
-pagination, reuses valid tokens, and backs off from 15 minutes up to six hours
-after failures. HTTP `429` responses also honour a valid `Retry-After` value.
+Credentials are stored only in owner-readable files under `/appdata/igpsport`.
+They are not written to SQLite, logs, runtime settings, or rendered HTML. Leaving
+the password field blank preserves the existing saved password.
 
-Cloud access is unofficial. If it stops working, manually exporting an original
-iGPSPORT FIT file and placing it in the Wahoo Dropbox folder is an alternative.
-Do not assume iGPSPORT can automatically export activities to Dropbox.
+### Historical iGPSPORT Activities
 
-### Historical iGPSPORT imports
+Historical imports never run automatically. In **Config > iGPSPORT Cloud**, choose
+a start date, optional end date, maximum count, and dry-run or upload mode. Review
+the confirmation page and enter `IMPORT`.
 
-Historical imports never run automatically. Under **Config > iGPSPORT Cloud**,
-choose a start date, optional end date, maximum activity count, and dry-run or
-upload mode. Review the separate confirmation page and enter `IMPORT`.
+Imports are capped at 500 activities and retain all global duplicate checks.
+Start with a small dry-run batch.
 
-The action is bounded to 500 activities, retains global duplicate checks, and
-refuses live upload while global dry-run mode is enabled. Start with a small
-dry-run batch.
+## Use Both Sources
+
+Wahoo/Dropbox and iGPSPORT can remain enabled together. Each source has its own
+poll schedule, session, source ID, and error state, while sharing one deduplication
+and Garmin upload pipeline.
+
+Do not run a second development container against the same live source accounts.
+Two containers polling the same accounts have separate SQLite histories and can
+race each other before either records the upload.
 
 ## Configure Garmin
 
 Open **Config > Garmin Upload**:
 
-1. Under **Identify Garmin Device**, upload one genuine FIT activity made by the
-   Garmin device you want imported activities to resemble.
+1. Under **Identify Garmin Device**, upload one genuine FIT activity created by
+   the Garmin device you want imported activities to resemble.
 2. Select **Upload and Scan for Garmin Device**.
 3. Select the detected device.
 4. Enter the Garmin Connect email and password.
 5. Save the Garmin upload profile.
 6. Create the Garmin session.
 
-The profile is stored at `/appdata/garmin/profile.json` and session tokens are
-stored under `/appdata/garmin/tokens`. Both are private persistent data.
+The profile is stored at `/appdata/garmin/profile.json`; session tokens are stored
+under `/appdata/garmin/tokens`. Both are private persistent data.
 
-Garmin may request MFA even when the normal website or app does not. Complete the
+Garmin may request MFA even when its website or mobile app does not. Complete the
 flow shown by the bridge and stop retrying if Garmin reports rate limiting.
 
 ## Enable Uploads
 
-While dry-run mode is enabled, select **Rescan** and confirm:
+While dry-run mode is enabled, sync each source and confirm:
 
-- Files from every enabled source are discovered.
 - Activity dates and distances are correct.
-- The expected Garmin device is selected.
+- The expected source is shown.
+- The intended Garmin device is selected.
 - No unexpected duplicates appear.
 
-Then set `DRY_RUN=false` and restart:
+Then disable dry-run mode on the Config page or set `DRY_RUN=false` and restart:
 
 ```bash
-docker compose up -d --build
+docker compose up -d
 ```
 
 Dry-run records are not automatically uploaded later. Reprocess an older activity
@@ -183,46 +205,33 @@ only after confirming it is not already present in Garmin Connect.
 
 ## Duplicate Protection
 
-The bridge records source metadata before processing and checks in this order:
+The bridge checks source activity IDs, remote metadata, FIT SHA256, activity
+start time, filename and size, stored history, and Garmin conflict responses.
+Known source items are skipped before downloading where possible.
 
-- Source type and stable external activity ID
-- FIT file SHA256
-- Activity start time
-- Filename and size fallback
-- Garmin duplicate/conflict responses
+No duplicate system can identify every manually edited or re-exported activity.
+Use dry-run mode when connecting an existing account or importing history.
 
-Handled source IDs are skipped on later polls. When the same ride arrives through
-Dropbox and iGPSPORT, both source references are retained where possible and only
-the first physical activity can upload. No duplicate system can identify every
-manually edited or re-exported activity, so use dry-run mode for archives.
-
-## Persistent Data and Upgrades
+## Persistent Data
 
 Both paths must survive container replacement:
 
 | Container path | Contents |
 | --- | --- |
 | `/data` | Incoming, processing, uploaded, duplicate, failed, and archived FIT files |
-| `/appdata` | SQLite history, source state, Dropbox config, iGPSPORT profile/session, Garmin profile/tokens, detected devices, and logs |
+| `/appdata` | SQLite history, settings, source credentials, sessions, Garmin profile, and logs |
 
 Always mount persistent Docker volumes at both paths. Losing `/appdata` removes
-deduplication history and saved authentication state. Back up both volumes before
-upgrading or migrating.
-
-Existing installations are migrated idempotently on startup. Existing Wahoo rows
-are conservatively marked as Dropbox activities, source columns and source-state
-tables are added without rewriting activity history, and Dropbox remains enabled
-when the new enable variable is absent. `POLL_SECONDS` remains the Dropbox fallback
-when `DROPBOX_POLL_SECONDS` is absent. Back up `/data` and `/appdata`, then verify
-the Config page and a dry-run sync before enabling another source.
+deduplication history and authentication state. Back up both volumes before
+upgrades. Backups contain credentials, tokens, device IDs, and location history,
+so encrypt them and keep them outside the repository.
 
 ## Security
 
-The admin interface includes signed HttpOnly session cookies, CSRF protection,
-login rate limiting, security headers, bounded FIT uploads, private credential
-files, and output redaction. The supplied container runs as an unprivileged user
-with a read-only root filesystem, dropped Linux capabilities, and
-`no-new-privileges`.
+The web interface includes signed HttpOnly cookies, CSRF protection, login rate
+limiting, security headers, bounded uploads, private credential files, and output
+redaction. The container runs as an unprivileged user with a read-only root
+filesystem, dropped Linux capabilities, and `no-new-privileges`.
 
 For stronger password storage:
 
@@ -230,60 +239,59 @@ For stronger password storage:
 docker compose run --rm bridge wahoo-bridge-hash-password
 ```
 
-Configure `WEB_PASSWORD_HASH`, leave `WEB_PASSWORD` empty, terminate HTTPS at a
-trusted reverse proxy, and do not expose port `8088` directly to the public
-internet. Never commit:
+Set `WEB_PASSWORD_HASH`, leave `WEB_PASSWORD` empty, terminate HTTPS at a trusted
+reverse proxy, and do not expose port `8088` directly to the public internet.
 
-- `.env`, `/data`, or `/appdata`
-- SQLite databases or logs
-- Dropbox, iGPSPORT, or Garmin credentials and tokens
-- Genuine Garmin, Wahoo, or iGPSPORT FIT files
-- Real Garmin unit IDs
+Never commit `.env`, `/data`, `/appdata`, databases, logs, credentials, tokens,
+real FIT files, or Garmin unit IDs. See [SECURITY.md](SECURITY.md) for reporting
+instructions.
 
-Every push and pull request runs tests, Ruff, Bandit, `pip-audit`, Docker build,
-Trivy image scanning, and Trivy deployment configuration scanning. Also enable
-GitHub secret scanning, push protection, Dependabot alerts, and branch protection.
-No software can be guaranteed impossible to compromise; keep the host and images
-patched and rotate sessions if exposure is suspected.
+Every push and pull request runs tests, Ruff, Bandit, `pip-audit`, a Docker build,
+Trivy image scanning, and Trivy deployment configuration scanning.
 
-See [SECURITY.md](SECURITY.md) for reporting instructions.
+## Releases and Container Images
+
+[GitHub Releases](https://github.com/ntrance/wahoo-garmin-fit-bridge/releases)
+are the clearest place for users to see stable versions, release notes, and
+upgrade information.
+
+Each version tag also publishes a ready-to-run Linux AMD64 image to GitHub
+Container Registry:
+
+```bash
+docker pull ghcr.io/ntrance/wahoo-garmin-fit-bridge:latest
+```
+
+Use a fixed version tag in production instead of `latest` so upgrades are
+intentional. The source repository remains the canonical installation option;
+the package is a convenience for hosts that prefer prebuilt images.
 
 ## Deployment
 
 Use `docker-compose.yml` on a normal Docker host. For Dokploy, use
 `docker-compose.dokploy.yml`, mount persistent volumes at `/data` and `/appdata`
-before the first production deployment, and provide secrets through Dokploy
+before the first production deployment, and provide secrets through Dokploy's
 environment settings.
-
-OrbStack can run the normal Compose file unchanged. Keep the bind-mounted `data`,
-`appdata`, and `real_fit` directories when recreating the container. Dokploy must
-retain its named `/data` and `/appdata` volumes across redeployments.
 
 ## Limitations
 
 - Intended for personal, self-hosted use.
-- Historic Wahoo activities are not automatically backfilled by Wahoo.
-- iGPSPORT Cloud endpoints are unofficial and may change without notice.
-- Automatic iGPSPORT polling intentionally favours low API load over immediacy.
-- Garmin may change its private authentication or upload endpoints.
-- Garmin decides how imported device information is displayed.
-- A malformed FIT may require a fresh export from the original source.
-- Garmin decides whether an imported activity qualifies for a badge or challenge.
+- Historical Wahoo activities are not automatically backfilled by Wahoo.
+- Garmin and iGPSPORT may change their private authentication or upload endpoints.
+- Garmin decides how imported device information is displayed and whether an
+  activity qualifies for a badge or challenge.
+- A malformed FIT file may require a fresh export from the original source.
 
 ## Development
 
 ```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
 pytest -q
 ruff check .
-bandit -q -r app
-pip-audit
 ```
 
-Contributions must not include real FIT activities, credentials, tokens, unit IDs,
-deployment addresses, or other personal data.
+Contributions must not include real FIT activities, credentials, session tokens,
+unit IDs, deployment addresses, or other personal data.
 
 ## Support
 
@@ -297,5 +305,5 @@ This bridge is released under the [MIT License](LICENSE). It uses the
 [garminconnect](https://github.com/cyberjunky/python-garminconnect), and
 [rclone](https://rclone.org/). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Wahoo, ELEMNT, Garmin, Garmin Connect, Dropbox, and their respective marks are the
-property of their owners.
+Wahoo, ELEMNT, iGPSPORT, Garmin, Garmin Connect, Dropbox, and their respective
+marks are the property of their owners.

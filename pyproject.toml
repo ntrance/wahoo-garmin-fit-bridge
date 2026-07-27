@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wahoo-garmin-fit-bridge"
-version = "0.1.0"
-description = "Dropbox to Fit-File-Faker to Garmin Connect bridge for Wahoo FIT files"
+version = "1.0.0"
+description = "Automatic Wahoo and iGPSPORT FIT activity sync to Garmin Connect"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",

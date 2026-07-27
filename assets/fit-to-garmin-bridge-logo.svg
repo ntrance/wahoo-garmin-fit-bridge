@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="240" viewBox="0 0 960 240" role="img" aria-labelledby="title description">
+  <title id="title">FIT to Garmin Bridge</title>
+  <desc id="description">Wahoo and iGPSPORT activity paths merge into Garmin Connect</desc>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="42" cy="83" r="16" stroke="#f25f5c" stroke-width="13"/>
+    <circle cx="42" cy="157" r="16" stroke="#13b6d8" stroke-width="13"/>
+    <path d="M60 83h118c32 0 38 37 70 37h89" stroke="#f25f5c" stroke-width="13"/>
+    <path d="M60 157h118c32 0 38-37 70-37h89" stroke="#13b6d8" stroke-width="13"/>
+    <path d="M325 96l26 24-26 24" stroke="#222b35" stroke-width="13"/>
+    <path d="M178 66c2-25 22-44 48-44 22 0 41 14 47 34 25-2 45 17 45 41" stroke="#222b35" stroke-width="12"/>
+  </g>
+  <text x="224" y="83" fill="#222b35" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="800" text-anchor="middle">FIT</text>
+  <text x="390" y="105" fill="#222b35" font-family="Arial, Helvetica, sans-serif" font-size="63" font-weight="800">FIT TO GARMIN</text>
+  <text x="393" y="156" fill="#13b6d8" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700">BRIDGE</text>
+  <text x="393" y="196" fill="#5b6570" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600">WAHOO + iGPSPORT</text>
+</svg>
