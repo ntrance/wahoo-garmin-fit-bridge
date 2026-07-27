@@ -73,21 +73,28 @@ class IGPSportStore:
     ) -> None:
         existing = self.load_profile()
         saved_password = password or str(existing.get("password") or "")
-        if not username.strip():
+        normalized_username = username.strip()
+        normalized_base_url = base_url.rstrip("/")
+        if not normalized_username:
             raise ValueError("iGPSPORT account identifier is required.")
         if not saved_password:
             raise ValueError("iGPSPORT password is required.")
-        if urlparse(base_url).scheme != "https":
+        if urlparse(normalized_base_url).scheme != "https":
             raise ValueError("iGPSPORT base URL must use HTTPS.")
         if import_mode not in {"new_only", "since_date"}:
             raise ValueError("Unsupported iGPSPORT import mode.")
+        credentials_changed = (
+            str(existing.get("username") or "") != normalized_username
+            or str(existing.get("base_url") or "") != normalized_base_url
+            or bool(password and password != str(existing.get("password") or ""))
+        )
         write_private_text(
             self.profile_path,
             json.dumps(
                 {
-                    "username": username.strip(),
+                    "username": normalized_username,
                     "password": saved_password,
-                    "base_url": base_url.rstrip("/"),
+                    "base_url": normalized_base_url,
                     "import_mode": import_mode,
                     "cutoff_date": cutoff_date,
                 },
@@ -95,6 +102,8 @@ class IGPSportStore:
             )
             + "\n",
         )
+        if credentials_changed:
+            self.clear_session()
 
     def delete_profile(self) -> None:
         self.clear_session()
@@ -168,12 +177,18 @@ class IGPSportClient:
         response = self._request(
             "POST",
             LOGIN_PATH,
+            allow_auth_failure=True,
             json={
                 "appId": "igpsport-web",
                 "username": username,
                 "password": password,
             },
         )
+        if response.status_code in {401, 403}:
+            raise IGPSportError(
+                _login_rejection_message(response),
+                requires_attention=True,
+            )
         payload = self._json(response, "iGPSPORT login returned invalid JSON.")
         token = _find_string(payload, ("accessToken", "access_token", "token"))
         if not token:
@@ -712,6 +727,26 @@ def _retry_after_seconds(value: str | None) -> int | None:
     if value and value.strip().isdigit():
         return min(max(int(value), 1), 21_600)
     return None
+
+
+def _login_rejection_message(response: httpx.Response) -> str:
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {}
+    if isinstance(payload, dict):
+        code = payload.get("code")
+        server_message = str(payload.get("message") or payload.get("msg") or "").lower()
+        if code == 1002 or "password error" in server_message:
+            return (
+                "iGPSPORT rejected the account identifier or password. "
+                "Confirm the same details work in the iGPSPORT app and that the "
+                "selected account region is correct."
+            )
+    return (
+        "iGPSPORT rejected the saved account or session. "
+        "Check the account details and selected account region."
+    )
 
 
 def _is_expired(value: str) -> bool:

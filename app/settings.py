@@ -6,6 +6,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+IGPSPORT_REGIONS = (
+    ("international", "International", "https://prod.en.igpsport.com/service"),
+    ("china", "China", "https://prod.zh.igpsport.com/service"),
+)
+IGPSPORT_DEFAULT_BASE_URL = IGPSPORT_REGIONS[0][2]
+
 
 def _bool_env(name: str, default: bool) -> bool:
     value = os.getenv(name)
@@ -97,7 +103,7 @@ class Settings:
             ),
             igpsport_base_url=os.getenv(
                 "IGPSPORT_BASE_URL",
-                "https://prod.zh.igpsport.com/service",
+                IGPSPORT_DEFAULT_BASE_URL,
             ).rstrip("/"),
             igpsport_config_dir=Path(
                 os.getenv("IGPSPORT_CONFIG_DIR", "/appdata/igpsport")

@@ -207,8 +207,17 @@
             <input class="form-control" id="igpsport_password" name="igpsport_password" type="password" autocomplete="current-password" placeholder="{{ 'Saved - leave blank to keep current password' if igpsport_configured else '' }}">
           </div>
           <div class="col-12">
-            <label class="form-label" for="igpsport_base_url">Cloud API base URL</label>
-            <input class="form-control" id="igpsport_base_url" name="igpsport_base_url" type="url" value="{{ igpsport_profile.base_url or settings.igpsport_base_url }}">
+            <label class="form-label" for="igpsport_base_url">Account region</label>
+            <select class="form-select" id="igpsport_base_url" name="igpsport_base_url">
+              {% for region_key, region_label, region_url in igpsport_regions %}
+              <option value="{{ region_url }}" {{ "selected" if (igpsport_profile.base_url or settings.igpsport_base_url) == region_url else "" }}>
+                {{ region_label }}
+              </option>
+              {% endfor %}
+            </select>
+            <div class="form-text">
+              Use International unless the account was created for the China iGPSPORT service.
+            </div>
           </div>
           <div class="col-md-6">
             <label class="form-label" for="igpsport_import_mode">Automatic import policy</label>

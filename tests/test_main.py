@@ -168,6 +168,28 @@ def test_config_page_shows_auth_paths(settings):
     assert "Identify Garmin Device" in response.text
     assert "Garmin Account and Upload Profile" in response.text
     assert "Garmin Session Upload" in response.text
+    assert "Account region" in response.text
+    assert "International" in response.text
+    assert "China" in response.text
+
+
+def test_igpsport_profile_rejects_unsupported_api_host(settings):
+    app = create_app(settings, start_background=False)
+    with TestClient(app) as client:
+        response = client.post(
+            "/config/igpsport/save",
+            data={
+                "igpsport_username": "account@example.test",
+                "igpsport_password": "not-a-real-password",
+                "igpsport_base_url": "https://example.test/service",
+                "igpsport_import_mode": "new_only",
+            },
+            follow_redirects=True,
+        )
+
+    assert response.status_code == 200
+    assert "Select a supported iGPSPORT account region." in response.text
+    assert not IGPSportStore(settings.igpsport_config_dir).profile_path.exists()
 
 
 def test_config_never_renders_igpsport_password_or_token(settings):

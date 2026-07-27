@@ -47,7 +47,7 @@ from app.setup_status import (
     test_garmin_upload,
 )
 from app.setup_status import save_dropbox_auth, save_garmin_profile
-from app.settings import Settings
+from app.settings import IGPSPORT_REGIONS, Settings
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -423,6 +423,7 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 "dropbox_oauth": getattr(app.state, "dropbox_oauth", None),
                 "source_statuses": request.app.state.source_manager.statuses(),
                 "igpsport_profile": igpsport_profile,
+                "igpsport_regions": IGPSPORT_REGIONS,
             },
         )
 
@@ -580,13 +581,16 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         form = await request.form()
         store = IGPSportStore(runtime_settings.igpsport_config_dir)
         try:
+            base_url = _form_text(
+                form.get("igpsport_base_url"),
+                runtime_settings.igpsport_base_url,
+            ).rstrip("/")
+            if base_url not in {region[2] for region in IGPSPORT_REGIONS}:
+                raise ValueError("Select a supported iGPSPORT account region.")
             store.save_profile(
                 username=_form_text(form.get("igpsport_username"), ""),
                 password=_form_text(form.get("igpsport_password"), ""),
-                base_url=_form_text(
-                    form.get("igpsport_base_url"),
-                    runtime_settings.igpsport_base_url,
-                ),
+                base_url=base_url,
                 import_mode=_form_text(
                     form.get("igpsport_import_mode"),
                     runtime_settings.igpsport_import_mode,

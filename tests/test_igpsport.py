@@ -15,6 +15,7 @@ from app.sources.igpsport import (
     IGPSportSource,
     IGPSportStore,
 )
+from app.settings import IGPSPORT_DEFAULT_BASE_URL
 
 
 def _client(tmp_path: Path, handler) -> tuple[IGPSportClient, IGPSportStore]:
@@ -22,14 +23,14 @@ def _client(tmp_path: Path, handler) -> tuple[IGPSportClient, IGPSportStore]:
     store.save_profile(
         username="account@example.test",
         password="not-a-real-password",
-        base_url="https://igpsport.example.test/service",
+        base_url=IGPSPORT_DEFAULT_BASE_URL,
         import_mode="new_only",
     )
     http_client = httpx.Client(transport=httpx.MockTransport(handler))
     return (
         IGPSportClient(
             store,
-            base_url="https://igpsport.example.test/service",
+            base_url=IGPSPORT_DEFAULT_BASE_URL,
             client=http_client,
         ),
         store,
@@ -94,6 +95,23 @@ def test_invalid_credentials_require_attention(tmp_path, status_code):
 
     assert exc_info.value.requires_attention
     assert "password" not in str(exc_info.value).lower()
+
+
+def test_structured_login_rejection_explains_credentials_and_region(tmp_path):
+    client, _ = _client(
+        tmp_path,
+        lambda request: httpx.Response(
+            403,
+            json={"code": 1002, "message": "Password error"},
+        ),
+    )
+
+    with pytest.raises(IGPSportError) as exc_info:
+        client.login()
+
+    message = str(exc_info.value).lower()
+    assert "account identifier or password" in message
+    assert "region" in message
 
 
 def test_http_429_honours_retry_after(tmp_path):
@@ -243,20 +261,40 @@ def test_blank_profile_password_preserves_saved_password(tmp_path):
     store.save_profile(
         username="first@example.test",
         password="saved-secret",
-        base_url="https://igpsport.example.test/service",
+        base_url=IGPSPORT_DEFAULT_BASE_URL,
         import_mode="new_only",
     )
 
     store.save_profile(
         username="second@example.test",
         password="",
-        base_url="https://igpsport.example.test/service",
+        base_url=IGPSPORT_DEFAULT_BASE_URL,
         import_mode="since_date",
         cutoff_date="2026-01-01",
     )
 
     assert store.load_profile()["password"] == "saved-secret"
     assert store.load_profile()["username"] == "second@example.test"
+
+
+def test_profile_change_clears_saved_session(tmp_path):
+    store = IGPSportStore(tmp_path / "igpsport")
+    store.save_profile(
+        username="first@example.test",
+        password="saved-secret",
+        base_url=IGPSPORT_DEFAULT_BASE_URL,
+        import_mode="new_only",
+    )
+    store.save_session("stale-token")
+
+    store.save_profile(
+        username="second@example.test",
+        password="",
+        base_url=IGPSPORT_DEFAULT_BASE_URL,
+        import_mode="new_only",
+    )
+
+    assert store.load_session() == {}
 
 
 def test_source_errors_redact_profile_and_session_secrets(settings):
