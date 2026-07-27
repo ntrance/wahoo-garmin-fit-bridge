@@ -256,6 +256,8 @@ class IGPSportClient:
         )
         payload = self._json(response, "iGPSPORT download response returned invalid JSON.")
         url = _find_string(payload, ("downloadUrl", "download_url", "url"))
+        if not url and isinstance(payload, dict) and isinstance(payload.get("data"), str):
+            url = payload["data"].strip()
         parsed = urlparse(url)
         if parsed.scheme != "https" or not parsed.netloc:
             raise IGPSportError("iGPSPORT returned an invalid FIT download URL.")

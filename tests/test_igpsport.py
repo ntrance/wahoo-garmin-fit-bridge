@@ -179,7 +179,11 @@ def test_activity_and_download_url_parsing(tmp_path):
             )
         return httpx.Response(
             200,
-            json={"data": {"downloadUrl": "https://downloads.example.test/ride.fit"}},
+            json={
+                "code": 200,
+                "message": "Success",
+                "data": "https://downloads.example.test/ride.fit",
+            },
         )
 
     client, _ = _client(tmp_path, handler)
