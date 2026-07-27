@@ -145,7 +145,7 @@ def _target_device_name(settings: Settings, profile) -> str:
         product_id = int(getattr(profile, "device", 0) or 0)
         if product_id:
             return garmin_product_display_name("", product_id)
-    except Exception:
+    except Exception:  # nosec B110
         pass
     name = settings.garmin_device_name.strip()
     return name if name.lower().startswith("garmin") else f"Garmin {name}"

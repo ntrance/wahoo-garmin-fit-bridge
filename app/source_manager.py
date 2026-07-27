@@ -145,6 +145,19 @@ class SourceManager:
         source = self.get("igpsport")
         if not isinstance(source, IGPSportSource):
             raise RuntimeError("The iGPSPORT source is unavailable.")
+        if not source.is_enabled():
+            return SourceSyncResult(
+                False,
+                "iGPSPORT historical import",
+                "Enable the iGPSPORT source before importing history.",
+            )
+        if not source.is_configured():
+            return SourceSyncResult(
+                False,
+                "iGPSPORT historical import",
+                "Configure the iGPSPORT profile before importing history.",
+                requires_attention=True,
+            )
         lock = self._locks["igpsport"]
         if not lock.acquire(blocking=False):
             return SourceSyncResult(

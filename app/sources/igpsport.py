@@ -173,7 +173,6 @@ class IGPSportClient:
                 "username": username,
                 "password": password,
             },
-            authenticated=False,
         )
         payload = self._json(response, "iGPSPORT login returned invalid JSON.")
         token = _find_string(payload, ("accessToken", "access_token", "token"))
@@ -318,11 +317,9 @@ class IGPSportClient:
         method: str,
         path: str,
         *,
-        authenticated: bool = True,
         allow_auth_failure: bool = False,
         **kwargs: Any,
     ) -> httpx.Response:
-        del authenticated
         url = f"{self.base_url}/{path.lstrip('/')}"
         response: httpx.Response | None = None
         for attempt in range(3):
@@ -384,10 +381,9 @@ class IGPSportSource:
         self.db = db
         self.poll_seconds = settings.igpsport_poll_seconds
         self.store = IGPSportStore(settings.igpsport_config_dir)
-        self.client = client or IGPSportClient(
-            self.store,
-            base_url=self._base_url(),
-        )
+        self._client_override = client
+        self._managed_client: IGPSportClient | None = None
+        self._managed_base_url = ""
 
     def is_enabled(self) -> bool:
         return self.settings.igpsport_source_enabled
@@ -398,7 +394,7 @@ class IGPSportSource:
 
     def test_connection(self) -> SourceResult:
         try:
-            self.client.list_activities(page=1, page_size=1)
+            self._client().list_activities(page=1, page_size=1)
             return SourceResult(True, "iGPSPORT connection", "iGPSPORT login and activity access succeeded.")
         except IGPSportError as exc:
             return self._error_result("iGPSPORT connection", exc)
@@ -462,7 +458,7 @@ class IGPSportSource:
         max_pages = min(25, (limit + 19) // 20 + 2)
         try:
             for page in range(1, max_pages + 1):
-                activities = self.client.list_activities(page=page, page_size=20)
+                activities = self._client().list_activities(page=page, page_size=20)
                 if not activities:
                     break
                 reached_older = False
@@ -487,7 +483,7 @@ class IGPSportSource:
 
             downloaded = 0
             for activity in reversed(selected):
-                fit_path = self.client.download_fit(
+                fit_path = self._client().download_fit(
                     activity.ride_id,
                     self.settings.incoming_dir,
                     self.settings.max_real_fit_upload_bytes,
@@ -542,7 +538,7 @@ class IGPSportSource:
         skipped = 0
         stop = False
         for page in range(1, self.settings.igpsport_max_pages_per_poll + 1):
-            activities = self.client.list_activities(page=page, page_size=20)
+            activities = self._client().list_activities(page=page, page_size=20)
             if not activities:
                 break
             for activity in activities:
@@ -563,7 +559,7 @@ class IGPSportSource:
 
         downloaded = 0
         for activity in reversed(unknown):
-            fit_path = self.client.download_fit(
+            fit_path = self._client().download_fit(
                 activity.ride_id,
                 self.settings.incoming_dir,
                 self.settings.max_real_fit_upload_bytes,
@@ -617,6 +613,17 @@ class IGPSportSource:
     def _base_url(self) -> str:
         profile = self.store.load_profile()
         return str(profile.get("base_url") or self.settings.igpsport_base_url)
+
+    def _client(self) -> IGPSportClient:
+        if self._client_override is not None:
+            return self._client_override
+        base_url = self._base_url()
+        if self._managed_client is None or self._managed_base_url != base_url:
+            if self._managed_client is not None:
+                self._managed_client.client.close()
+            self._managed_client = IGPSportClient(self.store, base_url=base_url)
+            self._managed_base_url = base_url
+        return self._managed_client
 
     def _error_result(self, title: str, exc: IGPSportError) -> SourceResult:
         profile = self.store.load_profile()
@@ -716,6 +723,11 @@ def _parse_time(value: str) -> datetime | None:
     if not value:
         return None
     try:
+        if value.isdigit():
+            timestamp = int(value)
+            if timestamp > 10_000_000_000:
+                timestamp /= 1000
+            return datetime.fromtimestamp(timestamp, tz=UTC)
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=UTC)

@@ -256,6 +256,9 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             context(request)
             | {
                 "activity": _activity_for_display(activity),
+                "source_references": request.app.state.db.list_source_items_for_activity(
+                    activity_id
+                ),
                 "activity_message": activity_message,
                 "preview": preview,
             },

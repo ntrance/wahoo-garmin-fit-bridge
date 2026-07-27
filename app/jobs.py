@@ -15,7 +15,7 @@ from app.garmin_upload import (
     run_garmin_upload,
 )
 from app.fit_metadata import FitMetadata, compute_fit_metadata, extract_fit_summary
-from app.setup_status import delete_dropbox_source, sync_dropbox_to_incoming
+from app.setup_status import delete_dropbox_source
 from app.settings import Settings
 from app.sources.base import read_source_sidecar, remove_source_sidecar
 
@@ -62,9 +62,6 @@ class BridgeService:
 
     async def run_forever(self) -> None:
         while True:
-            sync_result = await asyncio.to_thread(sync_dropbox_to_incoming, self.settings)
-            if not sync_result.ok:
-                logger.warning("Dropbox polling failed: %s", sync_result.output)
             await asyncio.to_thread(self.scan_once)
             await asyncio.sleep(self.settings.poll_seconds)
 

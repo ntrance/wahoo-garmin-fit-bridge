@@ -259,6 +259,34 @@ def test_blank_profile_password_preserves_saved_password(tmp_path):
     assert store.load_profile()["username"] == "second@example.test"
 
 
+def test_source_errors_redact_profile_and_session_secrets(settings):
+    db = Database(settings.sqlite_path)
+    db.init()
+
+    class FailingClient:
+        def list_activities(self, page=1, page_size=20):
+            raise IGPSportError(
+                "Rejected account@example.test saved-secret session-secret"
+            )
+
+    source = IGPSportSource(settings, db, client=FailingClient())
+    source.store.save_profile(
+        username="account@example.test",
+        password="saved-secret",
+        base_url=settings.igpsport_base_url,
+        import_mode="new_only",
+    )
+    source.store.save_session("session-secret")
+
+    result = source.test_connection()
+
+    assert not result.ok
+    assert "account@example.test" not in result.message
+    assert "saved-secret" not in result.message
+    assert "session-secret" not in result.message
+    assert result.message.count("[redacted]") == 3
+
+
 def test_incremental_source_stops_at_known_id_and_downloads_unknown_once(
     settings,
     monkeypatch,

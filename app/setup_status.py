@@ -5,7 +5,8 @@ import json
 import re
 import shlex
 import shutil
-import subprocess
+# Commands use fixed argv and never enable shell execution.
+import subprocess  # nosec B404
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -74,7 +75,7 @@ def load_garmin_profile_status(settings: Settings) -> dict[str, object]:
         "configured": False,
         "profile": settings.garmin_profile_name,
         "username": "",
-        "password_saved": False,
+        "password_saved": False,  # nosec B105
         "manufacturer_id": "1",
         "product_id": "",
         "unit_id": settings.garmin_unit_id,
@@ -87,7 +88,7 @@ def load_garmin_profile_status(settings: Settings) -> dict[str, object]:
         "default_profile": "",
         "detected_device_id": "",
         "token_dir": "",
-        "token_saved": False,
+        "token_saved": False,  # nosec B105
         "profile_error": "",
     }
 
@@ -113,7 +114,7 @@ def load_garmin_profile_status(settings: Settings) -> dict[str, object]:
     if matched_device is not None:
         try:
             from app.garmin_device import garmin_product_display_name
-        except Exception:
+        except Exception:  # nosec B110
             pass
         else:
             device_target_name = garmin_product_display_name(matched_device.garmin_product, matched_device.product_id)
@@ -122,7 +123,7 @@ def load_garmin_profile_status(settings: Settings) -> dict[str, object]:
     else:
         try:
             from app.garmin_device import garmin_product_display_name
-        except Exception:
+        except Exception:  # nosec B110
             pass
         else:
             try:
@@ -337,7 +338,7 @@ def sync_dropbox_to_incoming(settings: Settings) -> CommandResult:
     ]
 
     try:
-        listed = subprocess.run(
+        listed = subprocess.run(  # nosec B603
             list_command,
             check=False,
             capture_output=True,
@@ -403,7 +404,7 @@ def sync_dropbox_to_incoming(settings: Settings) -> CommandResult:
                 str(settings.rclone_config_path),
             ]
             try:
-                completed = subprocess.run(
+                completed = subprocess.run(  # nosec B603
                     command,
                     check=False,
                     capture_output=True,
@@ -503,7 +504,7 @@ def test_garmin_upload(settings: Settings) -> CommandResult:
 
 def _run(command: list[str], title: str) -> CommandResult:
     try:
-        completed = subprocess.run(
+        completed = subprocess.run(  # nosec B603
             command,
             check=False,
             capture_output=True,

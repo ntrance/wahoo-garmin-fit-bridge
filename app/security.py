@@ -56,7 +56,11 @@ class RateLimiter:
         self._last_prune = now
 
 
-def verify_password(candidate: str, password: str, password_hash: str = "") -> bool:
+def verify_password(
+    candidate: str,
+    password: str,
+    password_hash: str | None = None,
+) -> bool:
     if password_hash:
         return _verify_pbkdf2(candidate, password_hash)
     return hmac.compare_digest(candidate, password)

@@ -65,12 +65,7 @@ def write_source_sidecar(fit_path: Path, metadata: SourceFileMetadata) -> None:
 def read_source_sidecar(fit_path: Path) -> SourceFileMetadata:
     sidecar = source_sidecar_path(fit_path)
     if not sidecar.is_file():
-        return SourceFileMetadata(
-            source_type="local",
-            source_external_id=None,
-            source_display_name="Local / legacy",
-            source_original_filename=fit_path.name,
-        )
+        return _infer_legacy_source(fit_path)
     try:
         payload = json.loads(sidecar.read_text(encoding="utf-8"))
         return SourceFileMetadata(
@@ -96,13 +91,34 @@ def read_source_sidecar(fit_path: Path) -> SourceFileMetadata:
             force_dry_run=bool(payload.get("force_dry_run", False)),
         )
     except (OSError, ValueError, TypeError):
-        return SourceFileMetadata(
-            source_type="local",
-            source_external_id=None,
-            source_display_name="Local / legacy",
-            source_original_filename=fit_path.name,
-        )
+        return _infer_legacy_source(fit_path)
 
 
 def remove_source_sidecar(fit_path: Path) -> None:
     source_sidecar_path(fit_path).unlink(missing_ok=True)
+
+
+def _infer_legacy_source(fit_path: Path) -> SourceFileMetadata:
+    filename = fit_path.name
+    lowered = filename.lower()
+    if lowered.startswith("igpsport_") and lowered.endswith(".fit"):
+        external_id = filename[len("igpsport_") : -len(".fit")]
+        return SourceFileMetadata(
+            source_type="igpsport",
+            source_external_id=external_id or None,
+            source_display_name="iGPSPORT Cloud",
+            source_original_filename=filename,
+        )
+    if "elemnt" in lowered:
+        return SourceFileMetadata(
+            source_type="dropbox",
+            source_external_id=None,
+            source_display_name="Dropbox",
+            source_original_filename=filename,
+        )
+    return SourceFileMetadata(
+        source_type="local",
+        source_external_id=None,
+        source_display_name="Local / legacy",
+        source_original_filename=filename,
+    )

@@ -56,6 +56,18 @@
     <dt class="col-sm-4">Garmin upload status</dt>
     <dd class="col-sm-8">{{ activity.garmin_upload_status or activity.status }}</dd>
   </dl>
+  {% if source_references %}
+  <h3 class="h6 mt-3">Preserved source references</h3>
+  <ul class="mb-0">
+    {% for reference in source_references %}
+    <li>
+      {{ reference.source_type }}:
+      {{ reference.source_external_id }}
+      {% if reference.source_original_filename %}({{ reference.source_original_filename }}){% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
 </section>
 
 <section class="border rounded p-3 mb-4">

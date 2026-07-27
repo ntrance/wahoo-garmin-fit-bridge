@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import re
-import subprocess
+# Commands use fixed argv and never enable shell execution.
+import subprocess  # nosec B404
 import time
 import urllib.error
 import urllib.parse
@@ -30,7 +31,7 @@ class DropboxOAuthSession:
 def start_dropbox_oauth(settings: Settings) -> tuple[DropboxOAuthSession | None, CommandResult]:
     command = ["rclone", "authorize", "dropbox", "--auth-no-open-browser"]
     try:
-        process = subprocess.Popen(
+        process = subprocess.Popen(  # nosec B603
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

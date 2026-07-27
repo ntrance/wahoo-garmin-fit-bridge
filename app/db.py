@@ -325,6 +325,20 @@ class Database:
                 ),
             )
 
+    def list_source_items_for_activity(self, activity_id: int) -> list[dict[str, Any]]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT source_type, source_external_id, source_original_filename,
+                       source_remote_path, first_seen_at
+                FROM source_items
+                WHERE activity_id = ?
+                ORDER BY first_seen_at ASC, source_type ASC
+                """,
+                (activity_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def get_source_state(self, source_type: str) -> dict[str, Any]:
         with self.connect() as conn:
             row = conn.execute(

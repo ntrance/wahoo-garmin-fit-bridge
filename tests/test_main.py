@@ -512,7 +512,31 @@ def test_uploaded_activity_does_not_show_dropbox_delete(settings):
         response = client.get(f"/activity/{activity['id']}")
 
     assert response.status_code == 200
-    assert "Delete Dropbox" not in response.text
+    assert "Delete source file" not in response.text
+
+
+def test_igpsport_activity_never_shows_remote_delete(settings):
+    app = create_app(settings, start_background=False)
+    app.state.db.init()
+    activity = app.state.db.create_activity(
+        source_path="/data/incoming/igpsport_1.fit",
+        current_path="/data/failed/igpsport_1.fit",
+        filename="igpsport_1.fit",
+        sha256="igpsport-delete-hidden",
+        file_size=12,
+        activity_start_time=None,
+        source_type="igpsport",
+        source_external_id="1",
+        source_display_name="iGPSPORT Cloud",
+        status="failed",
+    )
+
+    with TestClient(app) as client:
+        response = client.get(f"/activity/{activity['id']}")
+
+    assert response.status_code == 200
+    assert "iGPSPORT Cloud" in response.text
+    assert "delete-dropbox" not in response.text
 
 
 def test_activity_page_hides_stored_raw_garmin_login_trace(settings):

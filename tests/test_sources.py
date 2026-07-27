@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import replace
 
 from app.db import Database
@@ -95,6 +96,45 @@ def test_source_backoff_increases_and_resets(settings):
     assert success_state["backoff_until"] is None
 
 
+def test_manual_sync_respects_active_source_lock(settings):
+    db = Database(settings.sqlite_path)
+    db.init()
+    source = FakeSource(
+        "igpsport",
+        900,
+        SourceSyncResult(True, "iGPSPORT", "success"),
+    )
+    manager = SourceManager(settings, db, sources=[source])
+    manager._locks["igpsport"].acquire()
+    try:
+        result = manager.sync_source("igpsport", manual=True)
+    finally:
+        manager._locks["igpsport"].release()
+
+    assert not result.ok
+    assert "already running" in result.message
+    assert source.calls == 0
+
+
+def test_sources_keep_independent_polling_intervals(settings):
+    db = Database(settings.sqlite_path)
+    db.init()
+    dropbox = FakeSource("dropbox", 60, SourceSyncResult(True, "Dropbox", "ok"))
+    igpsport = FakeSource(
+        "igpsport",
+        900,
+        SourceSyncResult(True, "iGPSPORT", "ok"),
+    )
+    manager = SourceManager(settings, db, sources=[dropbox, igpsport])
+
+    statuses = {
+        status["source_type"]: status for status in manager.statuses()
+    }
+
+    assert statuses["dropbox"]["poll_seconds"] == 60
+    assert statuses["igpsport"]["poll_seconds"] == 900
+
+
 def test_cross_source_same_start_time_is_marked_duplicate(
     settings,
     monkeypatch,
@@ -174,25 +214,86 @@ def test_cross_source_same_hash_preserves_source_reference_without_second_upload
     assert result["discovered"] == 0
     assert db.stats()["total"] == 1
     assert db.is_source_item_known("igpsport", "igpsport-1")
+    references = db.list_source_items_for_activity(1)
+    assert {reference["source_type"] for reference in references} == {
+        "dropbox",
+        "igpsport",
+    }
 
 
 def test_database_migration_adds_source_fields_without_losing_rows(settings):
+    settings.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(settings.sqlite_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE activities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_path TEXT NOT NULL,
+                current_path TEXT,
+                filename TEXT NOT NULL,
+                sha256 TEXT NOT NULL UNIQUE,
+                file_size INTEGER NOT NULL,
+                activity_start_time TEXT,
+                total_distance_meters REAL,
+                status TEXT NOT NULL,
+                garmin_upload_status TEXT,
+                garmin_response TEXT,
+                error_message TEXT,
+                retry_count INTEGER DEFAULT 0,
+                first_seen_at TEXT NOT NULL,
+                last_attempt_at TEXT,
+                uploaded_at TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO activities (
+                source_path, current_path, filename, sha256, file_size,
+                activity_start_time, status, first_seen_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "/data/incoming/ELEMNT-ride.fit",
+                "/data/uploaded/ELEMNT-ride.fit",
+                "ELEMNT-ride.fit",
+                "migration-sha",
+                123,
+                None,
+                "uploaded",
+                "2026-01-01T00:00:00Z",
+            ),
+        )
     db = Database(settings.sqlite_path)
     db.init()
-    activity = db.create_activity(
-        source_path="/data/incoming/ELEMNT-ride.fit",
-        current_path="/data/uploaded/ELEMNT-ride.fit",
-        filename="ELEMNT-ride.fit",
-        sha256="migration-sha",
-        file_size=123,
-        activity_start_time=None,
-        status="uploaded",
-    )
     db.init()
 
-    migrated = db.get_activity(activity["id"])
+    migrated = db.get_activity(1)
     assert migrated is not None
     assert migrated["source_type"] == "dropbox"
     assert migrated["sha256"] == "migration-sha"
     db.record_source_item(source_type="igpsport", source_external_id="ride-1")
     assert db.is_source_item_known("igpsport", "ride-1")
+
+
+def test_source_external_id_is_unique_per_source(settings):
+    db = Database(settings.sqlite_path)
+    db.init()
+    values = {
+        "source_path": "/data/incoming/ride.fit",
+        "current_path": "/data/incoming/ride.fit",
+        "filename": "ride.fit",
+        "file_size": 12,
+        "activity_start_time": None,
+        "source_type": "igpsport",
+        "source_external_id": "ride-1",
+    }
+    db.create_activity(sha256="first-sha", **values)
+
+    try:
+        db.create_activity(sha256="second-sha", **values)
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Duplicate source external ID was accepted")
