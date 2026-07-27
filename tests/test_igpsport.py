@@ -346,7 +346,7 @@ def test_incremental_source_stops_at_known_id_and_downloads_unknown_once(
         def list_activities(self, page=1, page_size=20):
             calls.append(("list", page))
             return [
-                IGPSportActivity("new", "2026-07-27T10:00:00Z", "new.fit"),
+                IGPSportActivity("new", "2026.07.27", "new.fit"),
                 IGPSportActivity("known", "2026-07-26T10:00:00Z", "known.fit"),
                 IGPSportActivity("older", "2026-07-25T10:00:00Z", "older.fit"),
             ]

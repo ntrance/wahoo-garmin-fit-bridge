@@ -757,13 +757,19 @@ def _is_expired(value: str) -> bool:
 def _parse_time(value: str) -> datetime | None:
     if not value:
         return None
+    normalized = value.strip()
     try:
-        if value.isdigit():
-            timestamp = int(value)
+        if normalized.isdigit():
+            timestamp = int(normalized)
             if timestamp > 10_000_000_000:
                 timestamp /= 1000
             return datetime.fromtimestamp(timestamp, tz=UTC)
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        for date_format in ("%Y.%m.%d", "%Y.%m.%d %H:%M:%S"):
+            try:
+                return datetime.strptime(normalized, date_format).replace(tzinfo=UTC)
+            except ValueError:
+                continue
+        parsed = datetime.fromisoformat(normalized.replace("Z", "+00:00"))
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=UTC)
         return parsed.astimezone(UTC)
