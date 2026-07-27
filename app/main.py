@@ -27,6 +27,9 @@ from app.garmin_device import (
 )
 from app.jobs import BridgeService
 from app.logging_config import configure_logging
+from app.source_manager import SourceManager
+from app.source_scheduler import SourceScheduler
+from app.sources.igpsport import IGPSportStore
 from app.security import (
     RateLimiter,
     csrf_token,
@@ -40,7 +43,6 @@ from app.setup_status import (
     clear_garmin_session_pause,
     create_garmin_session_token,
     save_runtime_config,
-    sync_dropbox_to_incoming,
     test_dropbox,
     test_garmin_upload,
 )
@@ -55,6 +57,8 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
     configure_logging(settings)
     db = Database(settings.sqlite_path)
     service = BridgeService(settings, db)
+    source_manager = SourceManager(settings, db)
+    service.source_manager = source_manager
     rate_limiter = RateLimiter(
         settings.login_rate_limit_attempts,
         settings.login_rate_limit_window_seconds,
@@ -66,7 +70,12 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         runtime_settings.validate_security()
         runtime_service.setup()
         if start_background:
-            app_instance.state.scan_task = asyncio.create_task(runtime_service.run_forever())
+            scheduler = SourceScheduler(
+                app_instance.state.source_manager,
+                runtime_service,
+            )
+            app_instance.state.scheduler = scheduler
+            app_instance.state.scan_task = asyncio.create_task(scheduler.run_forever())
         try:
             yield
         finally:
@@ -79,6 +88,7 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
     app.state.settings = settings
     app.state.db = db
     app.state.service = service
+    app.state.source_manager = source_manager
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):  # type: ignore[no-untyped-def]
@@ -223,6 +233,7 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 "activities": activities,
                 "cleanup_activities": cleanup_activities,
                 "dashboard_message": dashboard_message,
+                "source_statuses": request.app.state.source_manager.statuses(),
             },
         )
 
@@ -304,19 +315,20 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
     @app.post("/rescan")
     async def rescan(_csrf: None = Depends(require_csrf)) -> RedirectResponse:
         try:
-            runtime_settings = app.state.settings
             runtime_service = app.state.service
             sync_result = await asyncio.to_thread(
-                sync_dropbox_to_incoming, runtime_settings
+                app.state.source_manager.sync_all,
+                manual=True,
             )
-            scan_result = {"discovered": 0, "processed": 0}
-            if sync_result.ok:
-                scan_result = await asyncio.to_thread(runtime_service.scan_once)
+            scan_result = await asyncio.to_thread(runtime_service.scan_once)
+            source_output = "\n".join(
+                result.message for result in sync_result.values()
+            )
             app.state.dashboard_message = {
-                "ok": sync_result.ok,
+                "ok": all(result.ok for result in sync_result.values()),
                 "title": "Rescan",
                 "output": (
-                    f"{sync_result.output}\n"
+                    f"{source_output}\n"
                     f"Discovered {scan_result['discovered']} file(s). "
                     f"Processed {scan_result['processed']} file(s)."
                 ),
@@ -351,6 +363,12 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             "Duplicate folder": runtime_settings.duplicate_dir,
             "Failed folder": runtime_settings.failed_dir,
             "Poll interval": f"{runtime_settings.poll_seconds} seconds",
+            "Dropbox source": (
+                "enabled" if runtime_settings.dropbox_source_enabled else "disabled"
+            ),
+            "iGPSPORT source": (
+                "enabled" if runtime_settings.igpsport_source_enabled else "disabled"
+            ),
             "Garmin device": runtime_settings.garmin_device_name,
             "Garmin Unit ID configured": (
                 "yes" if runtime_settings.garmin_unit_id else "no"
@@ -373,6 +391,22 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 f"{runtime_settings.login_rate_limit_window_seconds} seconds"
             ),
         }
+        saved_igpsport_profile = IGPSportStore(
+            runtime_settings.igpsport_config_dir
+        ).load_profile()
+        igpsport_profile = {
+            "username": saved_igpsport_profile.get("username", ""),
+            "base_url": saved_igpsport_profile.get(
+                "base_url",
+                runtime_settings.igpsport_base_url,
+            ),
+            "import_mode": saved_igpsport_profile.get(
+                "import_mode",
+                runtime_settings.igpsport_import_mode,
+            ),
+            "cutoff_date": saved_igpsport_profile.get("cutoff_date", ""),
+            "password_saved": bool(saved_igpsport_profile.get("password")),
+        }
         return templates.TemplateResponse(
             request,
             "config.html",
@@ -384,6 +418,8 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 "garmin_presets": garmin_device_presets(),
                 "setup_message": getattr(app.state, "setup_message", None),
                 "dropbox_oauth": getattr(app.state, "dropbox_oauth", None),
+                "source_statuses": request.app.state.source_manager.statuses(),
+                "igpsport_profile": igpsport_profile,
             },
         )
 
@@ -485,6 +521,20 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 form.get("garmin_unit_id"), runtime_settings.garmin_unit_id
             ),
             "DRY_RUN": "true" if form.get("dry_run") == "on" else "false",
+            "DROPBOX_SOURCE_ENABLED": (
+                "true" if form.get("dropbox_source_enabled") == "on" else "false"
+            ),
+            "IGPSPORT_SOURCE_ENABLED": (
+                "true" if form.get("igpsport_source_enabled") == "on" else "false"
+            ),
+            "DROPBOX_POLL_SECONDS": _form_text(
+                form.get("dropbox_poll_seconds"),
+                str(runtime_settings.dropbox_poll_seconds),
+            ),
+            "IGPSPORT_POLL_SECONDS": _form_text(
+                form.get("igpsport_poll_seconds"),
+                str(runtime_settings.igpsport_poll_seconds),
+            ),
         }
         save_runtime_config(runtime_settings, updates)
         updated_settings = replace(
@@ -494,17 +544,229 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             garmin_profile_name=updates["GARMIN_PROFILE_NAME"],
             garmin_unit_id=updates["GARMIN_UNIT_ID"],
             dry_run=updates["DRY_RUN"] == "true",
+            dropbox_source_enabled=updates["DROPBOX_SOURCE_ENABLED"] == "true",
+            igpsport_source_enabled=updates["IGPSPORT_SOURCE_ENABLED"] == "true",
+            dropbox_poll_seconds=max(int(updates["DROPBOX_POLL_SECONDS"]), 10),
+            igpsport_poll_seconds=max(
+                int(updates["IGPSPORT_POLL_SECONDS"]),
+                runtime_settings.igpsport_min_poll_seconds,
+            ),
         )
         updated_db = Database(updated_settings.sqlite_path)
         updated_service = BridgeService(updated_settings, updated_db)
+        updated_source_manager = SourceManager(updated_settings, updated_db)
+        updated_service.source_manager = updated_source_manager
         updated_service.setup()
         app.state.settings = updated_settings
         app.state.db = updated_db
         app.state.service = updated_service
+        app.state.source_manager = updated_source_manager
         app.state.setup_message = {
             "ok": True,
             "title": "Settings saved",
             "output": "Saved to runtime config. Restart the bridge container so the background scanner uses the new values.",
+        }
+        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/igpsport/save")
+    async def save_igpsport_profile_route(
+        request: Request,
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        runtime_settings = request.app.state.settings
+        form = await request.form()
+        store = IGPSportStore(runtime_settings.igpsport_config_dir)
+        try:
+            store.save_profile(
+                username=_form_text(form.get("igpsport_username"), ""),
+                password=_form_text(form.get("igpsport_password"), ""),
+                base_url=_form_text(
+                    form.get("igpsport_base_url"),
+                    runtime_settings.igpsport_base_url,
+                ),
+                import_mode=_form_text(
+                    form.get("igpsport_import_mode"),
+                    runtime_settings.igpsport_import_mode,
+                ),
+                cutoff_date=_form_text(form.get("igpsport_cutoff_date"), ""),
+            )
+            app.state.setup_message = {
+                "ok": True,
+                "title": "iGPSPORT profile",
+                "output": "Saved the iGPSPORT profile without displaying stored credentials.",
+            }
+        except ValueError as exc:
+            app.state.setup_message = {
+                "ok": False,
+                "title": "iGPSPORT profile",
+                "output": str(exc),
+            }
+        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/igpsport/clear-session")
+    async def clear_igpsport_session_route(
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        IGPSportStore(app.state.settings.igpsport_config_dir).clear_session()
+        app.state.setup_message = {
+            "ok": True,
+            "title": "iGPSPORT session",
+            "output": "Cleared the saved iGPSPORT session token.",
+        }
+        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/igpsport/delete")
+    async def delete_igpsport_profile_route(
+        request: Request,
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        form = await request.form()
+        if _form_text(form.get("confirm"), "") != "DELETE":
+            app.state.setup_message = {
+                "ok": False,
+                "title": "Delete iGPSPORT profile",
+                "output": 'Enter "DELETE" to remove the saved profile and session.',
+            }
+        else:
+            IGPSportStore(app.state.settings.igpsport_config_dir).delete_profile()
+            app.state.setup_message = {
+                "ok": True,
+                "title": "Delete iGPSPORT profile",
+                "output": "Deleted the saved iGPSPORT profile and session.",
+            }
+        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.get("/config/igpsport/history/confirm", response_class=HTMLResponse)
+    async def confirm_igpsport_history_route(
+        request: Request,
+        start_date: str,
+        end_date: str = "",
+        max_activities: int = 20,
+        import_action: str = "dry_run",
+        _auth: None = Depends(require_auth),
+    ) -> HTMLResponse:
+        bounded_max = min(max(max_activities, 1), 500)
+        mode = "upload" if import_action == "upload" else "dry_run"
+        return templates.TemplateResponse(
+            request,
+            "igpsport_history.html",
+            context(request)
+            | {
+                "start_date": start_date,
+                "end_date": end_date,
+                "max_activities": bounded_max,
+                "import_action": mode,
+            },
+        )
+
+    @app.post("/config/igpsport/history")
+    async def import_igpsport_history_route(
+        request: Request,
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        form = await request.form()
+        start_date = _form_text(form.get("start_date"), "")
+        end_date = _form_text(form.get("end_date"), "")
+        import_action = _form_text(form.get("import_action"), "dry_run")
+        try:
+            max_activities = int(_form_text(form.get("max_activities"), "20"))
+        except ValueError:
+            max_activities = 20
+        if _form_text(form.get("confirm"), "") != "IMPORT":
+            app.state.setup_message = {
+                "ok": False,
+                "title": "iGPSPORT historical import",
+                "output": 'Enter "IMPORT" on the confirmation page to begin.',
+            }
+            return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+        if import_action == "upload" and app.state.settings.dry_run:
+            app.state.setup_message = {
+                "ok": False,
+                "title": "iGPSPORT historical import",
+                "output": (
+                    "Live historical upload was not started because global dry-run "
+                    "mode is enabled."
+                ),
+            }
+            return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+        result = await asyncio.to_thread(
+            app.state.source_manager.import_igpsport_history,
+            start_date=start_date,
+            end_date=end_date,
+            max_activities=max_activities,
+            dry_run=import_action != "upload",
+        )
+        scan_result = await asyncio.to_thread(app.state.service.scan_once)
+        app.state.setup_message = {
+            "ok": result.ok,
+            "title": result.title,
+            "output": (
+                f"{result.message}\nDiscovered {scan_result['discovered']} file(s); "
+                f"processed {scan_result['processed']} file(s)."
+            ),
+        }
+        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/source/{source_type}/test")
+    async def test_source_route(
+        source_type: str,
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        try:
+            result = await asyncio.to_thread(
+                app.state.source_manager.test_connection,
+                source_type,
+            )
+            app.state.setup_message = {
+                "ok": result.ok,
+                "title": result.title,
+                "output": result.message,
+            }
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/source/{source_type}/sync")
+    async def sync_source_route(
+        source_type: str,
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        try:
+            result = await asyncio.to_thread(
+                app.state.source_manager.sync_source,
+                source_type,
+                manual=True,
+            )
+            scan_result = await asyncio.to_thread(app.state.service.scan_once)
+            app.state.setup_message = {
+                "ok": result.ok,
+                "title": result.title,
+                "output": (
+                    f"{result.message}\nDiscovered {scan_result['discovered']} file(s); "
+                    f"processed {scan_result['processed']} file(s)."
+                ),
+            }
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/sources/sync")
+    async def sync_all_sources_route(
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        results = await asyncio.to_thread(
+            app.state.source_manager.sync_all,
+            manual=True,
+        )
+        scan_result = await asyncio.to_thread(app.state.service.scan_once)
+        app.state.setup_message = {
+            "ok": all(result.ok for result in results.values()),
+            "title": "Activity source sync",
+            "output": "\n".join(result.message for result in results.values())
+            + (
+                f"\nDiscovered {scan_result['discovered']} file(s); "
+                f"processed {scan_result['processed']} file(s)."
+            ),
         }
         return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -696,7 +958,15 @@ async def _run_activity_action(app: FastAPI, service: BridgeService, activity_id
     title = "Reprocess" if reset_retries else "Retry"
     try:
         if reset_retries:
-            await asyncio.to_thread(sync_dropbox_to_incoming, service.settings)
+            existing = app.state.db.get_activity(activity_id)
+            if existing is not None:
+                source_type = str(existing.get("source_type") or "dropbox")
+                if source_type in app.state.source_manager.sources:
+                    await asyncio.to_thread(
+                        app.state.source_manager.sync_source,
+                        source_type,
+                        manual=True,
+                    )
         activity = await asyncio.to_thread(service.retry_now, activity_id, reset_retries)
     except (RuntimeError, sqlite3.OperationalError) as exc:
         _set_activity_message(app, activity_id, False, title, _friendly_action_error(exc))

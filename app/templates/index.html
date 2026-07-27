@@ -37,8 +37,8 @@
 {% if cleanup_activities %}
 <div class="mb-4">
   <div class="d-flex justify-content-between align-items-center mb-2">
-    <h2 class="h5 mb-0">Dropbox cleanup</h2>
-    <span class="text-secondary small">{{ cleanup_activities|length }} failed or duplicate file(s)</span>
+    <h2 class="h5 mb-0">Source cleanup</h2>
+    <span class="text-secondary small">Remote deletion is available only when the source supports it</span>
   </div>
   <div class="table-responsive">
     <table class="table table-sm align-middle">
@@ -46,6 +46,7 @@
         <tr>
           <th>ID</th>
           <th>Filename</th>
+          <th>Source</th>
           <th>Status</th>
           <th>Start time</th>
           <th>Distance</th>
@@ -57,6 +58,7 @@
         <tr>
           <td><a href="/activity/{{ activity.id }}">{{ activity.id }}</a></td>
           <td>{{ activity.filename }}</td>
+          <td><span class="badge text-bg-light border text-dark">{{ activity.source_display_name or activity.source_type or "Local / legacy" }}</span></td>
           <td><span class="badge text-bg-warning">{{ activity.status }}</span></td>
           <td>{{ activity.activity_start_time or "" }}</td>
           <td>
@@ -65,11 +67,15 @@
             {% endif %}
           </td>
           <td>
-            <form method="post" action="/activity/{{ activity.id }}/delete-dropbox" onsubmit="return confirm('Delete this FIT file from Dropbox? This cannot be undone here.');">
+            {% if activity.source_type == "dropbox" %}
+            <form method="post" action="/activity/{{ activity.id }}/delete-dropbox" onsubmit="return confirm('Delete this source FIT file from Dropbox? This cannot be undone here.');">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <input type="hidden" name="next" value="/">
-              <button class="btn btn-outline-danger btn-sm" type="submit">Delete Dropbox</button>
+              <button class="btn btn-outline-danger btn-sm" type="submit">Delete source file</button>
             </form>
+            {% else %}
+            <span class="text-secondary small">Remote deletion unavailable</span>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -85,6 +91,7 @@
       <tr>
         <th>ID</th>
         <th>Filename</th>
+        <th>Source</th>
         <th>Status</th>
         <th>Start time</th>
         <th>Distance</th>
@@ -98,6 +105,7 @@
       <tr>
         <td><a href="/activity/{{ activity.id }}">{{ activity.id }}</a></td>
         <td>{{ activity.filename }}</td>
+        <td><span class="badge text-bg-light border text-dark">{{ activity.source_display_name or activity.source_type or "Local / legacy" }}</span></td>
         <td>
           <span class="badge text-bg-secondary">
             {{ "already on Garmin" if activity.status == "already_on_garmin" else activity.status }}
@@ -112,17 +120,17 @@
         <td>{{ activity.retry_count }}</td>
         <td>{{ activity.first_seen_at }}</td>
         <td>
-          {% if activity.status in ["failed", "duplicate"] %}
+          {% if activity.status in ["failed", "duplicate"] and activity.source_type == "dropbox" %}
           <form method="post" action="/activity/{{ activity.id }}/delete-dropbox" onsubmit="return confirm('Delete this FIT file from Dropbox? This cannot be undone here.');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="next" value="/">
-            <button class="btn btn-outline-danger btn-sm" type="submit">Delete Dropbox</button>
+            <button class="btn btn-outline-danger btn-sm" type="submit">Delete source file</button>
           </form>
           {% endif %}
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="8" class="text-secondary">No FIT files seen yet.</td></tr>
+      <tr><td colspan="9" class="text-secondary">No FIT files seen yet.</td></tr>
       {% endfor %}
     </tbody>
   </table>

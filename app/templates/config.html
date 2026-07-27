@@ -41,7 +41,10 @@
 </div>
 {% endif %}
 
-{% set connections_complete = setup.dropbox.configured and setup.garmin.configured %}
+{% set dropbox_ready = (not settings.dropbox_source_enabled) or setup.dropbox.configured %}
+{% set igpsport_configured = igpsport_profile.username and igpsport_profile.password_saved %}
+{% set igpsport_ready = (not settings.igpsport_source_enabled) or igpsport_configured %}
+{% set connections_complete = dropbox_ready and igpsport_ready and setup.garmin.configured %}
 <details class="config-accordion border rounded mb-4" {{ "open" if settings.dry_run or not connections_complete else "" }}>
   <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
     <h2 class="h5 mb-0">Connection Settings</h2>
@@ -49,8 +52,11 @@
       <span class="badge {{ 'text-bg-success' if connections_complete else 'text-bg-warning' }}">
         {{ "Setup complete" if connections_complete else "Setup incomplete" }}
       </span>
-      <span class="badge {{ 'text-bg-success' if setup.dropbox.configured else 'text-bg-warning' }}">
-        Dropbox: {{ "Configured" if setup.dropbox.configured else "Needs setup" }}
+      <span class="badge {{ 'text-bg-success' if dropbox_ready else 'text-bg-warning' }}">
+        Dropbox: {{ "Ready" if dropbox_ready else "Needs setup" }}
+      </span>
+      <span class="badge {{ 'text-bg-success' if igpsport_ready else 'text-bg-warning' }}">
+        iGPSPORT: {{ "Ready" if igpsport_ready else "Needs setup" }}
       </span>
       <span class="badge {{ 'text-bg-success' if setup.garmin.configured else 'text-bg-warning' }}">
         Garmin: {{ "Configured" if setup.garmin.configured else "Needs setup" }}
@@ -64,13 +70,16 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     {% if connections_complete %}
     <div class="alert alert-success py-2">
-      Dropbox and Garmin Upload are configured.
+      All enabled activity sources and Garmin Upload are configured.
     </div>
     {% else %}
     <div class="alert alert-warning py-2">
       <strong>Setup incomplete.</strong>
-      {% if not setup.dropbox.configured %}
+      {% if settings.dropbox_source_enabled and not setup.dropbox.configured %}
       <span class="d-block">Dropbox still needs to be configured.</span>
+      {% endif %}
+      {% if settings.igpsport_source_enabled and not igpsport_configured %}
+      <span class="d-block">iGPSPORT Cloud still needs to be configured.</span>
       {% endif %}
       {% if not setup.garmin.configured %}
       <span class="d-block">Garmin Upload still needs to be configured.</span>
@@ -95,6 +104,25 @@
         <input class="form-control" id="garmin_unit_id" name="garmin_unit_id" value="{{ settings.garmin_unit_id }}" autocomplete="off">
       </div>
       <div class="col-12">
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" id="dropbox_source_enabled" name="dropbox_source_enabled" {{ "checked" if settings.dropbox_source_enabled else "" }}>
+          <label class="form-check-label" for="dropbox_source_enabled">Wahoo/ELEMNT via Dropbox</label>
+        </div>
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" id="igpsport_source_enabled" name="igpsport_source_enabled" {{ "checked" if settings.igpsport_source_enabled else "" }}>
+          <label class="form-check-label" for="igpsport_source_enabled">iGPSPORT Cloud</label>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="dropbox_poll_seconds">Dropbox polling interval (seconds)</label>
+        <input class="form-control" id="dropbox_poll_seconds" name="dropbox_poll_seconds" type="number" min="10" value="{{ settings.dropbox_poll_seconds }}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="igpsport_poll_seconds">iGPSPORT polling interval (seconds)</label>
+        <input class="form-control" id="igpsport_poll_seconds" name="igpsport_poll_seconds" type="number" min="{{ settings.igpsport_min_poll_seconds }}" value="{{ settings.igpsport_poll_seconds }}">
+        <div class="form-text">Automatic cloud polling cannot run more often than every {{ settings.igpsport_min_poll_seconds }} seconds.</div>
+      </div>
+      <div class="col-12">
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" id="dry_run" name="dry_run" {{ "checked" if settings.dry_run else "" }}>
           <label class="form-check-label" for="dry_run">Dry-run mode</label>
@@ -108,6 +136,142 @@
 </details>
 
 <div class="mb-4">
+  <details class="config-accordion border rounded mb-3" open>
+    <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
+      <h2 class="h5 mb-0">Activity Sources</h2>
+      <span class="badge text-bg-secondary">{{ source_statuses|selectattr("enabled")|list|length }} enabled</span>
+    </summary>
+    <div class="border-top p-3">
+      <form method="post" action="/config/sources/sync" class="mb-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-primary btn-sm" type="submit">Sync all enabled sources now</button>
+      </form>
+      <div class="row g-3">
+        {% for source in source_statuses %}
+        <div class="col-12">
+          <div class="border rounded p-3">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+              <div>
+                <h3 class="h6 mb-1">{{ source.display_name }}</h3>
+                <span class="badge {{ 'text-bg-success' if source.enabled else 'text-bg-secondary' }}">{{ "Enabled" if source.enabled else "Disabled" }}</span>
+                <span class="badge {{ 'text-bg-success' if source.configured else 'text-bg-warning' }}">{{ "Configured" if source.configured else "Needs setup" }}</span>
+              </div>
+              <div class="d-flex gap-2">
+                <form method="post" action="/config/source/{{ source.source_type }}/test">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button class="btn btn-outline-primary btn-sm" type="submit">Test connection</button>
+                </form>
+                <form method="post" action="/config/source/{{ source.source_type }}/sync">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button class="btn btn-outline-primary btn-sm" type="submit" {{ "disabled" if not source.enabled else "" }}>Sync now</button>
+                </form>
+              </div>
+            </div>
+            <dl class="row small mb-0">
+              <dt class="col-sm-3">Polling interval</dt><dd class="col-sm-9">{{ source.poll_seconds }} seconds</dd>
+              <dt class="col-sm-3">Last attempt</dt><dd class="col-sm-9">{{ source.last_poll_at or "Not yet" }}</dd>
+              <dt class="col-sm-3">Last success</dt><dd class="col-sm-9">{{ source.last_success_at or "Not yet" }}</dd>
+              <dt class="col-sm-3">Next poll</dt><dd class="col-sm-9">{{ source.next_poll_at or "After startup" }}</dd>
+              {% if source.last_error %}
+              <dt class="col-sm-3 text-danger">Last error</dt><dd class="col-sm-9 text-danger">{{ source.last_error }}</dd>
+              {% endif %}
+            </dl>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </details>
+
+  <details class="config-accordion border rounded mb-3" {{ "open" if settings.igpsport_source_enabled and not igpsport_configured else "" }}>
+    <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
+      <h2 class="h5 mb-0">iGPSPORT Cloud</h2>
+      <span class="badge {{ 'text-bg-success' if igpsport_configured else 'text-bg-warning' }}">
+        {{ "Configured" if igpsport_configured else "Needs setup" }}
+      </span>
+    </summary>
+    <div class="border-top p-3">
+      <div class="alert alert-info py-2">
+        iGPSPORT Cloud access uses an unofficial API and may require maintenance if upstream endpoints change.
+        The bridge reuses a saved session token and polls conservatively to reduce account and API load.
+      </div>
+      <form method="post" action="/config/igpsport/save" class="mb-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="igpsport_username">Account email, username or phone</label>
+            <input class="form-control" id="igpsport_username" name="igpsport_username" value="{{ igpsport_profile.username or '' }}" autocomplete="username">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="igpsport_password">Password</label>
+            <input class="form-control" id="igpsport_password" name="igpsport_password" type="password" autocomplete="current-password" placeholder="{{ 'Saved - leave blank to keep current password' if igpsport_configured else '' }}">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="igpsport_base_url">Cloud API base URL</label>
+            <input class="form-control" id="igpsport_base_url" name="igpsport_base_url" type="url" value="{{ igpsport_profile.base_url or settings.igpsport_base_url }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="igpsport_import_mode">Automatic import policy</label>
+            <select class="form-select" id="igpsport_import_mode" name="igpsport_import_mode">
+              <option value="new_only" {{ "selected" if (igpsport_profile.import_mode or settings.igpsport_import_mode) == "new_only" else "" }}>Only activities recorded after enabling iGPSPORT</option>
+              <option value="since_date" {{ "selected" if igpsport_profile.import_mode == "since_date" else "" }}>Activities since selected date</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="igpsport_cutoff_date">Import cutoff date</label>
+            <input class="form-control" id="igpsport_cutoff_date" name="igpsport_cutoff_date" type="date" value="{{ igpsport_profile.cutoff_date or '' }}">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm mt-3" type="submit">Save iGPSPORT profile</button>
+      </form>
+      <div class="d-flex gap-2 flex-wrap mb-3">
+        <form method="post" action="/config/source/igpsport/test">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-outline-primary btn-sm" type="submit">Test iGPSPORT login</button>
+        </form>
+        <form method="post" action="/config/igpsport/clear-session">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-outline-secondary btn-sm" type="submit">Clear saved session</button>
+        </form>
+      </div>
+      <div class="border rounded p-3 mb-3">
+        <h3 class="h6">Bounded historical import</h3>
+        <form method="get" action="/config/igpsport/history/confirm">
+          <div class="row g-2">
+            <div class="col-md-3">
+              <label class="form-label" for="history_start_date">Start date</label>
+              <input class="form-control" id="history_start_date" name="start_date" type="date" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label" for="history_end_date">End date</label>
+              <input class="form-control" id="history_end_date" name="end_date" type="date">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label" for="history_max">Maximum activities</label>
+              <input class="form-control" id="history_max" name="max_activities" type="number" min="1" max="500" value="20">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label" for="history_action">Mode</label>
+              <select class="form-select" id="history_action" name="import_action">
+                <option value="dry_run">Dry run</option>
+                <option value="upload">Upload</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-outline-danger btn-sm mt-3" type="submit">Review historical import</button>
+        </form>
+      </div>
+      <form method="post" action="/config/igpsport/delete" class="border-top pt-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="form-label" for="igpsport_delete_confirm">Enter DELETE to remove the saved profile and session</label>
+        <div class="input-group">
+          <input class="form-control" id="igpsport_delete_confirm" name="confirm" autocomplete="off">
+          <button class="btn btn-outline-danger" type="submit">Delete profile</button>
+        </div>
+      </form>
+    </div>
+  </details>
+
   <details class="config-accordion border rounded mb-3" {{ "open" if dropbox_oauth or not setup.dropbox.configured else "" }}>
     <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
       <h2 class="h5 mb-0">Dropbox</h2>

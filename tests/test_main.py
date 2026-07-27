@@ -13,6 +13,8 @@ from app.setup_status import (
     sync_dropbox_to_incoming,
     test_garmin_upload as run_garmin_upload_test,
 )
+from app.sources.base import SourceResult, SourceSyncResult
+from app.sources.igpsport import IGPSportStore
 
 
 def test_health(settings):
@@ -114,6 +116,34 @@ def test_csrf_required_for_protected_posts(settings):
     assert response.status_code == 403
 
 
+def test_igpsport_test_and_sync_require_csrf(settings):
+    authed_settings = settings.__class__(
+        **{
+            **settings.__dict__,
+            "web_auth_enabled": True,
+            "igpsport_source_enabled": True,
+        }
+    )
+    app = create_app(authed_settings, start_background=False)
+    with TestClient(app) as client:
+        client.post(
+            "/login",
+            data={"username": "admin", "password": "password", "next": "/config"},
+            follow_redirects=False,
+        )
+        test_response = client.post(
+            "/config/source/igpsport/test",
+            follow_redirects=False,
+        )
+        sync_response = client.post(
+            "/config/source/igpsport/sync",
+            follow_redirects=False,
+        )
+
+    assert test_response.status_code == 403
+    assert sync_response.status_code == 403
+
+
 def test_config_page_shows_auth_paths(settings):
     app = create_app(settings, start_background=False)
     with TestClient(app) as client:
@@ -138,6 +168,27 @@ def test_config_page_shows_auth_paths(settings):
     assert "Identify Garmin Device" in response.text
     assert "Garmin Account and Upload Profile" in response.text
     assert "Garmin Session Upload" in response.text
+
+
+def test_config_never_renders_igpsport_password_or_token(settings):
+    store = IGPSportStore(settings.igpsport_config_dir)
+    store.save_profile(
+        username="masked@example.test",
+        password="profile-secret-value",
+        base_url=settings.igpsport_base_url,
+        import_mode="new_only",
+    )
+    store.save_session("session-secret-value")
+    app = create_app(settings, start_background=False)
+
+    with TestClient(app) as client:
+        response = client.get("/config")
+
+    assert response.status_code == 200
+    assert "masked@example.test" in response.text
+    assert "profile-secret-value" not in response.text
+    assert "session-secret-value" not in response.text
+    assert "Saved - leave blank" in response.text
     assert "saved Garmin session token" in response.text
     assert "Create Garmin Session" in response.text
 
@@ -291,18 +342,26 @@ def test_delete_dropbox_source_rejects_unsafe_names(settings, monkeypatch):
 def test_rescan_pulls_dropbox_before_scanning(settings, monkeypatch):
     calls: list[str] = []
 
-    def fake_sync(_settings):
+    def fake_sync(*, manual=False):
+        assert manual
         calls.append("sync")
-        return CommandResult(True, "Dropbox sync", "Copied 1 new FIT file from Dropbox.")
+        return {
+            "dropbox": SourceSyncResult(
+                True,
+                "Dropbox sync",
+                "Copied 1 new FIT file from Dropbox.",
+                downloaded=1,
+            )
+        }
 
     def fake_scan_once(self):
         calls.append("scan")
         return {"discovered": 1, "processed": 1}
 
-    monkeypatch.setattr("app.main.sync_dropbox_to_incoming", fake_sync)
     monkeypatch.setattr("app.jobs.BridgeService.scan_once", fake_scan_once)
 
     app = create_app(settings, start_background=False)
+    monkeypatch.setattr(app.state.source_manager, "sync_all", fake_sync)
     with TestClient(app) as client:
         response = client.post("/rescan", follow_redirects=True)
 
@@ -368,11 +427,11 @@ def test_reprocess_lock_returns_activity_warning(settings, monkeypatch):
 
 
 def test_failed_activity_can_be_deleted_from_dropbox(settings, monkeypatch):
-    def fake_delete(_settings, filename):
-        assert filename == "ride.fit"
-        return CommandResult(True, "Dropbox delete", "Deleted from Dropbox.")
+    def fake_delete(self, external_id):
+        assert external_id == "ride.fit"
+        return SourceResult(True, "Dropbox delete", "Deleted from Dropbox.")
 
-    monkeypatch.setattr("app.jobs.delete_dropbox_source", fake_delete)
+    monkeypatch.setattr("app.sources.dropbox.DropboxSource.delete_remote_activity", fake_delete)
 
     app = create_app(settings, start_background=False)
     app.state.db.init()
@@ -399,7 +458,7 @@ def test_failed_activity_can_be_deleted_from_dropbox(settings, monkeypatch):
     assert dashboard.status_code == 200
     assert f"/activity/{activity['id']}/delete-dropbox" in dashboard.text
     assert detail.status_code == 200
-    assert "Delete Dropbox" in detail.text
+    assert "Delete source file" in detail.text
     assert response.status_code == 200
     assert "Deleted from Dropbox." in response.text
     assert updated is not None
@@ -521,6 +580,34 @@ def test_config_save_writes_runtime_config(settings):
     assert "DROPBOX_WAHOO_PATH=Apps/WahooFitness" in written
     assert "GARMIN_UNIT_ID=unit-123" in written
     assert settings.runtime_config_path.stat().st_mode & 0o777 == 0o600
+
+
+def test_config_save_supports_both_activity_sources(settings):
+    app = create_app(settings, start_background=False)
+    with TestClient(app) as client:
+        response = client.post(
+            "/config/save",
+            data={
+                "csrf_token": "",
+                "rclone_remote": "dropbox",
+                "dropbox_wahoo_path": "Apps/WahooFitness",
+                "garmin_profile_name": "wahoo",
+                "garmin_unit_id": "12345",
+                "dropbox_source_enabled": "on",
+                "igpsport_source_enabled": "on",
+                "dropbox_poll_seconds": "60",
+                "igpsport_poll_seconds": "900",
+                "dry_run": "on",
+            },
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 303
+    assert app.state.settings.dropbox_source_enabled
+    assert app.state.settings.igpsport_source_enabled
+    saved = settings.runtime_config_path.read_text()
+    assert "DROPBOX_SOURCE_ENABLED=true" in saved
+    assert "IGPSPORT_SOURCE_ENABLED=true" in saved
 
 
 def test_dropbox_auth_save_writes_rclone_config(settings):

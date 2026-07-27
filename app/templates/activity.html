@@ -15,11 +15,11 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <button class="btn btn-outline-secondary btn-sm" type="submit">Ignore</button>
     </form>
-    {% if activity.status in ["failed", "duplicate"] %}
+    {% if activity.status in ["failed", "duplicate"] and activity.source_type == "dropbox" %}
     <form method="post" action="/activity/{{ activity.id }}/delete-dropbox" onsubmit="return confirm('Delete this FIT file from Dropbox? This cannot be undone here.');">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="next" value="/activity/{{ activity.id }}">
-      <button class="btn btn-outline-danger btn-sm" type="submit">Delete Dropbox</button>
+      <button class="btn btn-outline-danger btn-sm" type="submit">Delete source file</button>
     </form>
     {% endif %}
   </div>
@@ -31,6 +31,32 @@
   <pre class="mb-0 mt-2" style="white-space: pre-wrap;">{{ activity_message.output }}</pre>
 </div>
 {% endif %}
+
+<section class="border rounded p-3 mb-4">
+  <h2 class="h5 mb-3">Source and Garmin status</h2>
+  <dl class="row mb-0">
+    <dt class="col-sm-4">Source provider</dt>
+    <dd class="col-sm-8">{{ activity.source_display_name or activity.source_type or "Local / legacy" }}</dd>
+    <dt class="col-sm-4">Source activity ID</dt>
+    <dd class="col-sm-8">{{ activity.source_external_id or "Not available" }}</dd>
+    <dt class="col-sm-4">Original filename</dt>
+    <dd class="col-sm-8">{{ activity.source_original_filename or activity.filename }}</dd>
+    <dt class="col-sm-4">Source reference</dt>
+    <dd class="col-sm-8">{{ activity.source_remote_path or "Not available" }}</dd>
+    <dt class="col-sm-4">Duplicate of activity</dt>
+    <dd class="col-sm-8">
+      {% if activity.duplicate_of_activity_id %}
+      <a href="/activity/{{ activity.duplicate_of_activity_id }}">{{ activity.duplicate_of_activity_id }}</a>
+      {% else %}
+      No duplicate match
+      {% endif %}
+    </dd>
+    <dt class="col-sm-4">Original FIT device</dt>
+    <dd class="col-sm-8"><code>{{ activity.source_device_json or "{}" }}</code></dd>
+    <dt class="col-sm-4">Garmin upload status</dt>
+    <dd class="col-sm-8">{{ activity.garmin_upload_status or activity.status }}</dd>
+  </dl>
+</section>
 
 <section class="border rounded p-3 mb-4">
   <div class="d-flex justify-content-between align-items-center mb-3">

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="mb-4">
+  <h1 class="h3">Confirm iGPSPORT historical import</h1>
+  <p class="text-secondary">
+    Historical imports are separate from automatic polling and remain bounded by the values below.
+    Existing source IDs, FIT hashes, and activity start times are still checked before upload.
+  </p>
+</div>
+
+<section class="border rounded p-3 mb-4">
+  <dl class="row mb-0">
+    <dt class="col-sm-4">Start date</dt><dd class="col-sm-8">{{ start_date }}</dd>
+    <dt class="col-sm-4">End date</dt><dd class="col-sm-8">{{ end_date or "No end date" }}</dd>
+    <dt class="col-sm-4">Maximum activities</dt><dd class="col-sm-8">{{ max_activities }}</dd>
+    <dt class="col-sm-4">Mode</dt><dd class="col-sm-8">{{ "Upload" if import_action == "upload" else "Dry run" }}</dd>
+  </dl>
+</section>
+
+<form method="post" action="/config/igpsport/history">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="start_date" value="{{ start_date }}">
+  <input type="hidden" name="end_date" value="{{ end_date }}">
+  <input type="hidden" name="max_activities" value="{{ max_activities }}">
+  <input type="hidden" name="import_action" value="{{ import_action }}">
+  <label class="form-label" for="confirm">Enter IMPORT to confirm</label>
+  <input class="form-control mb-3" id="confirm" name="confirm" autocomplete="off" required>
+  <div class="d-flex gap-2">
+    <button class="btn btn-danger" type="submit">Start bounded import</button>
+    <a class="btn btn-outline-secondary" href="/config">Cancel</a>
+  </div>
+</form>
+{% endblock %}
