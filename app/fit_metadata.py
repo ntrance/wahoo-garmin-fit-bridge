@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
@@ -16,6 +17,7 @@ class FitMetadata:
     file_size: int
     activity_start_time: str | None
     total_distance_meters: float | None
+    source_device_json: str = "{}"
 
 
 def calculate_sha256(path: Path) -> str:
@@ -53,7 +55,57 @@ def compute_fit_metadata(path: Path) -> FitMetadata:
         file_size=path.stat().st_size,
         activity_start_time=activity_start_time,
         total_distance_meters=total_distance_meters,
+        source_device_json=json.dumps(
+            extract_source_device(path),
+            sort_keys=True,
+        ),
     )
+
+
+def extract_source_device(path: Path) -> dict[str, object]:
+    try:
+        from garmin_fit_sdk import Decoder, Stream
+
+        messages, _ = Decoder(Stream.from_file(str(path))).read()
+    except Exception:
+        return {}
+    device = _find_device_info(messages)
+    if not device:
+        return {}
+    serial = device.get("serial_number") or device.get("serialNumber")
+    serial_text = str(serial) if serial is not None else ""
+    return {
+        key: value
+        for key, value in {
+            "manufacturer": device.get("manufacturer"),
+            "product_id": device.get("product") or device.get("garmin_product"),
+            "product_name": device.get("product_name"),
+            "software_version": device.get("software_version"),
+            "device_index": device.get("device_index"),
+            "serial_hint": f"...{serial_text[-4:]}" if serial_text else None,
+        }.items()
+        if value is not None and value != ""
+    }
+
+
+def _find_device_info(value: object) -> dict[str, object] | None:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if "device_info" in str(key).lower():
+                if isinstance(item, list) and item and isinstance(item[0], dict):
+                    return item[0]
+                if isinstance(item, dict):
+                    return item
+        for item in value.values():
+            found = _find_device_info(item)
+            if found:
+                return found
+    elif isinstance(value, list):
+        for item in value:
+            found = _find_device_info(item)
+            if found:
+                return found
+    return None
 
 
 def _find_datetime(value: Any) -> str | None:

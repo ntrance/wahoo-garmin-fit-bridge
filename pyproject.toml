@@ -13,6 +13,7 @@ dependencies = [
     "jinja2>=3.1.0",
     "python-dotenv>=1.0.0",
     "python-multipart>=0.0.20",
+    "httpx>=0.27.0",
     "garmin-fit-sdk>=21.158.0",
     "garminconnect>=0.3.3",
 ]
@@ -20,7 +21,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "bandit>=1.8,<2",
-    "httpx>=0.27.0",
     "pip-audit>=2.9,<3",
     "pytest>=8.0.0",
     "ruff>=0.12,<1",

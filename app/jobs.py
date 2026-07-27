@@ -5,7 +5,7 @@ import logging
 import shutil
 import threading
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 from app.db import Database, utc_now
 from app.garmin_upload import (
@@ -17,6 +17,7 @@ from app.garmin_upload import (
 from app.fit_metadata import FitMetadata, compute_fit_metadata, extract_fit_summary
 from app.setup_status import delete_dropbox_source, sync_dropbox_to_incoming
 from app.settings import Settings
+from app.sources.base import read_source_sidecar, remove_source_sidecar
 
 logger = logging.getLogger(__name__)
 GarminRunner = Callable[[Path, Settings], GarminUploadResult]
@@ -32,6 +33,7 @@ class BridgeService:
         self.settings = settings
         self.db = db
         self.garmin_runner = garmin_runner
+        self.source_manager: Any | None = None
         self._lock = threading.Lock()
 
     def setup(self) -> None:
@@ -97,9 +99,18 @@ class BridgeService:
         if activity["status"] not in {"failed", "duplicate"}:
             raise RuntimeError("Only failed or duplicate activities can be deleted from Dropbox.")
 
-        result = delete_dropbox_source(self.settings, str(activity["filename"]))
+        if self.source_manager is not None:
+            result = self.source_manager.delete_remote_activity(activity)
+            result_output = result.message
+        else:
+            legacy_result = delete_dropbox_source(
+                self.settings,
+                str(activity["filename"]),
+            )
+            result = legacy_result
+            result_output = legacy_result.output
         fields: dict[str, object] = {
-            "garmin_response": result.output,
+            "garmin_response": result_output,
             "last_attempt_at": utc_now(),
         }
         if result.ok:
@@ -111,7 +122,7 @@ class BridgeService:
                 }
             )
         else:
-            fields["error_message"] = result.output
+            fields["error_message"] = result_output
         return self.db.update_activity(activity_id, **fields)
 
     def _backfill_missing_distances(self) -> int:
@@ -151,24 +162,52 @@ class BridgeService:
         return count
 
     def _discover_file(self, fit_path: Path) -> bool:
+        source = read_source_sidecar(fit_path)
+        if source.source_external_id:
+            existing_source = self.db.find_by_source_external_id(
+                source.source_type,
+                source.source_external_id,
+            )
+            if existing_source is not None:
+                fit_path.unlink(missing_ok=True)
+                remove_source_sidecar(fit_path)
+                return False
         metadata = compute_fit_metadata(fit_path)
         existing_hash = self.db.find_by_sha256(metadata.sha256)
         if existing_hash is not None:
             if self._same_known_file(existing_hash, fit_path):
                 return False
-            fit_path.unlink()
+            if source.source_external_id:
+                self.db.record_source_item(
+                    source_type=source.source_type,
+                    source_external_id=source.source_external_id,
+                    activity_id=int(existing_hash["id"]),
+                    source_original_filename=source.source_original_filename,
+                    source_remote_path=source.source_remote_path,
+                )
+            fit_path.unlink(missing_ok=True)
+            remove_source_sidecar(fit_path)
             logger.info(
-                "Removed repeated source file already recorded as activity %s: %s",
+                "Removed repeated source file from %s already recorded as activity %s: %s",
+                source.source_display_name,
                 existing_hash["id"],
                 fit_path,
             )
             return False
 
-        duplicate_reason = self._duplicate_reason(metadata, fit_path)
-        if duplicate_reason:
+        duplicate_match, duplicate_reason = self._duplicate_match(metadata, fit_path)
+        if duplicate_reason and duplicate_match is not None:
             moved_path = self._move_file(fit_path, self.settings.duplicate_dir)
-            self.db.create_activity(
+            activity = self.db.create_activity(
                 source_path=str(fit_path),
+                source_type=source.source_type,
+                source_external_id=source.source_external_id,
+                source_display_name=source.source_display_name,
+                source_original_filename=source.source_original_filename,
+                source_remote_path=source.source_remote_path,
+                source_device_json=metadata.source_device_json,
+                duplicate_of_activity_id=int(duplicate_match["id"]),
+                source_import_dry_run=source.force_dry_run,
                 current_path=str(moved_path),
                 filename=fit_path.name,
                 sha256=metadata.sha256,
@@ -178,31 +217,67 @@ class BridgeService:
                 status="duplicate",
                 garmin_response=duplicate_reason,
             )
+            self._link_source_item(source, int(activity["id"]))
+            remove_source_sidecar(fit_path)
             logger.info("Duplicate detected: %s (%s)", fit_path, duplicate_reason)
             return True
 
-        self.db.create_activity(
+        activity = self.db.create_activity(
             source_path=str(fit_path),
+            source_type=source.source_type,
+            source_external_id=source.source_external_id,
+            source_display_name=source.source_display_name,
+            source_original_filename=source.source_original_filename,
+            source_remote_path=source.source_remote_path,
+            source_device_json=metadata.source_device_json,
+            source_import_dry_run=source.force_dry_run,
             current_path=str(fit_path),
             filename=fit_path.name,
             sha256=metadata.sha256,
             file_size=metadata.file_size,
             activity_start_time=metadata.activity_start_time,
             total_distance_meters=metadata.total_distance_meters,
-            status="new",
+            status="dry_run" if source.force_dry_run else "new",
+            garmin_response=(
+                "Historical import dry run: file discovered but not uploaded"
+                if source.force_dry_run
+                else None
+            ),
         )
-        logger.info("Discovered FIT file: %s", fit_path)
+        self._link_source_item(source, int(activity["id"]))
+        remove_source_sidecar(fit_path)
+        logger.info("Discovered %s FIT file: %s", source.source_display_name, fit_path)
         return True
 
     def _duplicate_reason(self, metadata: FitMetadata, fit_path: Path) -> str | None:
+        _, reason = self._duplicate_match(metadata, fit_path)
+        return reason
+
+    def _duplicate_match(
+        self,
+        metadata: FitMetadata,
+        fit_path: Path,
+    ) -> tuple[dict[str, object] | None, str | None]:
         if metadata.activity_start_time:
             start_match = self.db.find_by_start_time(metadata.activity_start_time)
             if start_match is not None:
-                return f"Same activity start time as activity {start_match['id']}"
+                return start_match, f"Same activity start time as activity {start_match['id']}"
         filename_match = self.db.find_by_filename_size(fit_path.name, metadata.file_size)
         if filename_match is not None:
-            return f"Same filename and file size as activity {filename_match['id']}"
-        return None
+            return filename_match, f"Same filename and file size as activity {filename_match['id']}"
+        return None, None
+
+    def _link_source_item(self, source: object, activity_id: int) -> None:
+        external_id = getattr(source, "source_external_id", None)
+        if not external_id:
+            return
+        self.db.record_source_item(
+            source_type=str(getattr(source, "source_type", "local")),
+            source_external_id=str(external_id),
+            activity_id=activity_id,
+            source_original_filename=getattr(source, "source_original_filename", None),
+            source_remote_path=getattr(source, "source_remote_path", None),
+        )
 
     def _process_pending(self) -> int:
         processed = 0

@@ -8,6 +8,14 @@ from typing import Any
 UPDATABLE_ACTIVITY_FIELDS = frozenset(
     {
         "source_path",
+        "source_type",
+        "source_external_id",
+        "source_display_name",
+        "source_original_filename",
+        "source_remote_path",
+        "source_device_json",
+        "duplicate_of_activity_id",
+        "source_import_dry_run",
         "current_path",
         "filename",
         "sha256",
@@ -52,6 +60,14 @@ class Database:
                 CREATE TABLE IF NOT EXISTS activities (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     source_path TEXT NOT NULL,
+                    source_type TEXT NOT NULL DEFAULT 'local',
+                    source_external_id TEXT,
+                    source_display_name TEXT,
+                    source_original_filename TEXT,
+                    source_remote_path TEXT,
+                    source_device_json TEXT,
+                    duplicate_of_activity_id INTEGER,
+                    source_import_dry_run INTEGER NOT NULL DEFAULT 0,
                     current_path TEXT,
                     filename TEXT NOT NULL,
                     sha256 TEXT NOT NULL,
@@ -72,6 +88,28 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_activities_status ON activities(status);
                 CREATE INDEX IF NOT EXISTS idx_activities_start_time ON activities(activity_start_time);
                 CREATE INDEX IF NOT EXISTS idx_activities_sha256 ON activities(sha256);
+
+                CREATE TABLE IF NOT EXISTS source_sync_state (
+                    source_type TEXT PRIMARY KEY,
+                    last_poll_at TEXT,
+                    last_success_at TEXT,
+                    last_error TEXT,
+                    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+                    backoff_until TEXT,
+                    next_poll_at TEXT,
+                    cursor_json TEXT,
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS source_items (
+                    source_type TEXT NOT NULL,
+                    source_external_id TEXT NOT NULL,
+                    activity_id INTEGER,
+                    source_original_filename TEXT,
+                    source_remote_path TEXT,
+                    first_seen_at TEXT NOT NULL,
+                    PRIMARY KEY (source_type, source_external_id)
+                );
                 """
             )
             columns = {
@@ -80,6 +118,50 @@ class Database:
             }
             if "total_distance_meters" not in columns:
                 conn.execute("ALTER TABLE activities ADD COLUMN total_distance_meters REAL")
+            migrations = {
+                "source_type": "TEXT NOT NULL DEFAULT 'local'",
+                "source_external_id": "TEXT",
+                "source_display_name": "TEXT",
+                "source_original_filename": "TEXT",
+                "source_remote_path": "TEXT",
+                "source_device_json": "TEXT",
+                "duplicate_of_activity_id": "INTEGER",
+                "source_import_dry_run": "INTEGER NOT NULL DEFAULT 0",
+            }
+            for column, definition in migrations.items():
+                if column not in columns:
+                    conn.execute(
+                        f"ALTER TABLE activities ADD COLUMN {column} {definition}"  # nosec B608
+                    )
+            conn.execute(
+                """
+                UPDATE activities
+                SET source_type = 'dropbox',
+                    source_display_name = COALESCE(source_display_name, 'Dropbox'),
+                    source_original_filename = COALESCE(source_original_filename, filename)
+                WHERE (source_type IS NULL OR source_type = 'local')
+                  AND (
+                    filename LIKE '%ELEMNT%'
+                    OR source_path LIKE '%/incoming/%'
+                    OR source_path LIKE '%/uploaded/%'
+                    OR source_path LIKE '%/failed/%'
+                    OR source_path LIKE '%/duplicate/%'
+                  )
+                """
+            )
+            conn.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_activities_source_external
+                ON activities(source_type, source_external_id)
+                WHERE source_external_id IS NOT NULL AND source_external_id != ''
+                """
+            )
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_activities_duplicate_of
+                ON activities(duplicate_of_activity_id)
+                """
+            )
 
     def create_activity(
         self,
@@ -90,6 +172,14 @@ class Database:
         sha256: str,
         file_size: int,
         activity_start_time: str | None,
+        source_type: str = "dropbox",
+        source_external_id: str | None = None,
+        source_display_name: str | None = None,
+        source_original_filename: str | None = None,
+        source_remote_path: str | None = None,
+        source_device_json: str | None = None,
+        duplicate_of_activity_id: int | None = None,
+        source_import_dry_run: bool = False,
         total_distance_meters: float | None = None,
         status: str = "new",
         garmin_response: str | None = None,
@@ -100,14 +190,25 @@ class Database:
             cursor = conn.execute(
                 """
                 INSERT INTO activities (
-                    source_path, current_path, filename, sha256, file_size,
+                    source_path, source_type, source_external_id, source_display_name,
+                    source_original_filename, source_remote_path, source_device_json,
+                    duplicate_of_activity_id, source_import_dry_run, current_path,
+                    filename, sha256, file_size,
                     activity_start_time, total_distance_meters, status,
                     garmin_response, error_message, first_seen_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     source_path,
+                    source_type,
+                    source_external_id,
+                    source_display_name,
+                    source_original_filename,
+                    source_remote_path,
+                    source_device_json,
+                    duplicate_of_activity_id,
+                    int(source_import_dry_run),
                     current_path,
                     filename,
                     sha256,
@@ -158,6 +259,139 @@ class Database:
         with self.connect() as conn:
             row = conn.execute("SELECT * FROM activities WHERE sha256 = ?", (sha256,)).fetchone()
         return dict(row) if row else None
+
+    def find_by_source_external_id(
+        self,
+        source_type: str,
+        source_external_id: str,
+    ) -> dict[str, Any] | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM activities
+                WHERE source_type = ? AND source_external_id = ?
+                LIMIT 1
+                """,
+                (source_type, source_external_id),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def is_source_item_known(self, source_type: str, source_external_id: str) -> bool:
+        with self.connect() as conn:
+            row = conn.execute(
+                """
+                SELECT 1 FROM source_items
+                WHERE source_type = ? AND source_external_id = ?
+                """,
+                (source_type, source_external_id),
+            ).fetchone()
+        return row is not None
+
+    def record_source_item(
+        self,
+        *,
+        source_type: str,
+        source_external_id: str,
+        activity_id: int | None = None,
+        source_original_filename: str | None = None,
+        source_remote_path: str | None = None,
+    ) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO source_items (
+                    source_type, source_external_id, activity_id,
+                    source_original_filename, source_remote_path, first_seen_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(source_type, source_external_id) DO UPDATE SET
+                    activity_id = COALESCE(excluded.activity_id, source_items.activity_id),
+                    source_original_filename = COALESCE(
+                        excluded.source_original_filename,
+                        source_items.source_original_filename
+                    ),
+                    source_remote_path = COALESCE(
+                        excluded.source_remote_path,
+                        source_items.source_remote_path
+                    )
+                """,
+                (
+                    source_type,
+                    source_external_id,
+                    activity_id,
+                    source_original_filename,
+                    source_remote_path,
+                    utc_now(),
+                ),
+            )
+
+    def get_source_state(self, source_type: str) -> dict[str, Any]:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM source_sync_state WHERE source_type = ?",
+                (source_type,),
+            ).fetchone()
+        if row:
+            return dict(row)
+        return {
+            "source_type": source_type,
+            "last_poll_at": None,
+            "last_success_at": None,
+            "last_error": None,
+            "consecutive_failures": 0,
+            "backoff_until": None,
+            "next_poll_at": None,
+            "cursor_json": None,
+            "updated_at": None,
+        }
+
+    def update_source_state(self, source_type: str, **fields: Any) -> dict[str, Any]:
+        allowed = {
+            "last_poll_at",
+            "last_success_at",
+            "last_error",
+            "consecutive_failures",
+            "backoff_until",
+            "next_poll_at",
+            "cursor_json",
+        }
+        invalid = fields.keys() - allowed
+        if invalid:
+            raise ValueError(f"Unsupported source state fields: {', '.join(sorted(invalid))}")
+        state = self.get_source_state(source_type)
+        state.update(fields)
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO source_sync_state (
+                    source_type, last_poll_at, last_success_at, last_error,
+                    consecutive_failures, backoff_until, next_poll_at,
+                    cursor_json, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(source_type) DO UPDATE SET
+                    last_poll_at = excluded.last_poll_at,
+                    last_success_at = excluded.last_success_at,
+                    last_error = excluded.last_error,
+                    consecutive_failures = excluded.consecutive_failures,
+                    backoff_until = excluded.backoff_until,
+                    next_poll_at = excluded.next_poll_at,
+                    cursor_json = excluded.cursor_json,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    source_type,
+                    state["last_poll_at"],
+                    state["last_success_at"],
+                    state["last_error"],
+                    int(state["consecutive_failures"] or 0),
+                    state["backoff_until"],
+                    state["next_poll_at"],
+                    state["cursor_json"],
+                    utc_now(),
+                ),
+            )
+        return self.get_source_state(source_type)
 
     def find_by_start_time(self, start_time: str) -> dict[str, Any] | None:
         with self.connect() as conn:

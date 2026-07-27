@@ -168,6 +168,10 @@ def save_runtime_config(settings: Settings, updates: dict[str, str]) -> None:
         "GARMIN_DEVICE_NAME",
         "GARMIN_UNIT_ID",
         "DRY_RUN",
+        "DROPBOX_SOURCE_ENABLED",
+        "IGPSPORT_SOURCE_ENABLED",
+        "DROPBOX_POLL_SECONDS",
+        "IGPSPORT_POLL_SECONDS",
     ]
     lines = [f"{key}={_quote_env(existing.get(key, ''))}" for key in allowed_keys]
     write_private_text(settings.runtime_config_path, "\n".join(lines) + "\n")

@@ -25,6 +25,15 @@ def _int_env(name: str, default: int) -> int:
 class Settings:
     app_name: str
     poll_seconds: int
+    dropbox_source_enabled: bool
+    igpsport_source_enabled: bool
+    dropbox_poll_seconds: int
+    igpsport_poll_seconds: int
+    igpsport_min_poll_seconds: int
+    igpsport_max_pages_per_poll: int
+    igpsport_base_url: str
+    igpsport_config_dir: Path
+    igpsport_import_mode: str
     max_retries: int
     log_level: str
     web_auth_enabled: bool
@@ -69,9 +78,34 @@ class Settings:
         if runtime_config_path.exists():
             load_dotenv(runtime_config_path, override=True)
 
+        poll_seconds = _int_env("POLL_SECONDS", 60)
+        igpsport_min_poll_seconds = max(_int_env("IGPSPORT_MIN_POLL_SECONDS", 300), 300)
         return cls(
-            app_name=os.getenv("APP_NAME", "wahoo-garmin-fit-bridge"),
-            poll_seconds=_int_env("POLL_SECONDS", 60),
+            app_name=os.getenv("APP_NAME", "fit-to-garmin-bridge"),
+            poll_seconds=poll_seconds,
+            dropbox_source_enabled=_bool_env("DROPBOX_SOURCE_ENABLED", True),
+            igpsport_source_enabled=_bool_env("IGPSPORT_SOURCE_ENABLED", False),
+            dropbox_poll_seconds=max(_int_env("DROPBOX_POLL_SECONDS", poll_seconds), 10),
+            igpsport_poll_seconds=max(
+                _int_env("IGPSPORT_POLL_SECONDS", 900),
+                igpsport_min_poll_seconds,
+            ),
+            igpsport_min_poll_seconds=igpsport_min_poll_seconds,
+            igpsport_max_pages_per_poll=max(
+                1,
+                min(_int_env("IGPSPORT_MAX_PAGES_PER_POLL", 3), 20),
+            ),
+            igpsport_base_url=os.getenv(
+                "IGPSPORT_BASE_URL",
+                "https://prod.zh.igpsport.com/service",
+            ).rstrip("/"),
+            igpsport_config_dir=Path(
+                os.getenv("IGPSPORT_CONFIG_DIR", "/appdata/igpsport")
+            ),
+            igpsport_import_mode=os.getenv(
+                "IGPSPORT_IMPORT_MODE",
+                "new_only",
+            ).strip().lower(),
             max_retries=_int_env("MAX_RETRIES", 3),
             log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
             web_auth_enabled=_bool_env("WEB_AUTH_ENABLED", True),
@@ -140,6 +174,7 @@ class Settings:
             self.real_fit_upload_dir,
             self.detected_devices_path.parent,
             self.garmin_config_dir,
+            self.igpsport_config_dir,
         ):
             directory.mkdir(parents=True, exist_ok=True)
 
