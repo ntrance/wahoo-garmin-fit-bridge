@@ -207,6 +207,20 @@ under `/appdata/garmin/tokens`. Both are private persistent data.
 Garmin may request MFA even when its website or mobile app does not. Complete the
 flow shown by the bridge and stop retrying if Garmin reports rate limiting.
 
+### Sync Uploaded Activities to Your Garmin Device
+
+[Physio TrueUp](https://support.garmin.com/en-IN/?faq=g4zagaDmtJ0luYPPvEuwz9)
+must be active for Garmin Connect to sync supported fitness and training data
+back to a compatible Garmin device. Garmin devices that support Unified Training
+Status have Physio TrueUp enabled automatically. On other compatible devices,
+enable it in Garmin Connect under the device's **General**, **Device Settings**,
+**My Stats**, or **System** settings.
+
+After the bridge uploads an activity, sync the Garmin device with Garmin Connect.
+The activity may require more than one device sync before it appears in the
+device's activity history or widgets. Garmin determines which activity details
+and physiological metrics are transferred to each device.
+
 ## Enable Uploads
 
 While dry-run mode is enabled, sync each source and confirm:
