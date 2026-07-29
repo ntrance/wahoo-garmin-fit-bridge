@@ -230,11 +230,15 @@ While dry-run mode is enabled, sync each source and confirm:
 - The intended Garmin device is selected.
 - No unexpected duplicates appear.
 
-Then disable dry-run mode on the Config page or set `DRY_RUN=false` and restart:
+When the checks look correct, open **Config > Connection Settings**, switch
+**Dry-run mode** off, and select **Save Settings**. The change applies
+immediately to future manual syncs and background polling; the container does
+not need to be rebuilt or restarted.
 
-```bash
-docker compose up -d
-```
+`DRY_RUN` in `.env` supplies the initial default for a new installation. After
+settings have been saved in the web interface, the persistent
+`/appdata/runtime.env` value takes precedence. Use the Config page for later
+changes.
 
 Dry-run records are not automatically uploaded later. Reprocess an older activity
 only after confirming it is not already present in Garmin Connect.
