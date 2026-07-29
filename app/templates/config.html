@@ -52,16 +52,22 @@
       <span class="badge {{ 'text-bg-success' if connections_complete else 'text-bg-warning' }}">
         {{ "Setup complete" if connections_complete else "Setup incomplete" }}
       </span>
-      {% if settings.dropbox_source_enabled %}
-      <span class="badge {{ 'text-bg-success' if dropbox_ready else 'text-bg-warning' }}">
-        Dropbox: {{ "Ready" if dropbox_ready else "Needs setup" }}
+      <span
+        class="badge {{ 'text-bg-danger' if not settings.dropbox_source_enabled else ('text-bg-success' if setup.dropbox.configured else 'text-bg-warning') }}"
+        id="dropbox-status-pill"
+        data-configured="{{ 'true' if setup.dropbox.configured else 'false' }}"
+        aria-live="polite"
+      >
+        Dropbox: {{ "Disabled" if not settings.dropbox_source_enabled else ("Ready" if setup.dropbox.configured else "Needs setup") }}
       </span>
-      {% endif %}
-      {% if settings.igpsport_source_enabled %}
-      <span class="badge {{ 'text-bg-success' if igpsport_ready else 'text-bg-warning' }}">
-        iGPSPORT: {{ "Ready" if igpsport_ready else "Needs setup" }}
+      <span
+        class="badge {{ 'text-bg-danger' if not settings.igpsport_source_enabled else ('text-bg-success' if igpsport_configured else 'text-bg-warning') }}"
+        id="igpsport-status-pill"
+        data-configured="{{ 'true' if igpsport_configured else 'false' }}"
+        aria-live="polite"
+      >
+        iGPSPORT: {{ "Disabled" if not settings.igpsport_source_enabled else ("Ready" if igpsport_configured else "Needs setup") }}
       </span>
-      {% endif %}
       <span class="badge {{ 'text-bg-success' if setup.garmin.configured else 'text-bg-warning' }}">
         Garmin: {{ "Configured" if setup.garmin.configured else "Needs setup" }}
       </span>
@@ -615,4 +621,5 @@
     </table>
   </div>
 </details>
+<script src="/static/config-source-status.js"></script>
 {% endblock %}

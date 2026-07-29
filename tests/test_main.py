@@ -169,7 +169,8 @@ def test_config_page_shows_auth_paths(settings):
     assert "Identify Garmin Device" in response.text
     assert "Garmin Account and Upload Profile" in response.text
     assert "Garmin Session Upload" in response.text
-    assert "iGPSPORT: Ready" not in response.text
+    assert "iGPSPORT: Disabled" in response.text
+    assert 'src="/static/config-source-status.js"' in response.text
     assert 'id="igpsport_username"' not in response.text
 
 
@@ -181,6 +182,7 @@ def test_config_page_shows_igpsport_only_when_enabled(settings):
 
     assert response.status_code == 200
     assert "iGPSPORT: Needs setup" in response.text
+    assert "iGPSPORT: Disabled" not in response.text
     assert 'id="igpsport_username"' in response.text
     assert "Account region" in response.text
     assert "International" in response.text
@@ -237,6 +239,16 @@ def test_navbar_logo_asset_is_served(settings):
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/svg+xml"
+
+
+def test_config_source_status_script_is_served(settings):
+    app = create_app(settings, start_background=False)
+    with TestClient(app) as client:
+        response = client.get("/static/config-source-status.js")
+
+    assert response.status_code == 200
+    assert "text-bg-danger" in response.text
+    assert "Disabled" in response.text
 
 
 def test_sync_dropbox_to_incoming_copies_fit_files(settings, monkeypatch):
