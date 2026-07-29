@@ -1,4 +1,13 @@
 vulnerabilities:
+  - id: CVE-2026-56852
+    paths:
+      - "usr/local/bin/rclone"
+    expired_at: 2026-08-31
+    statement: >-
+      rclone 1.74.4 embeds golang.org/x/text 0.38.0. The bridge invokes rclone
+      only against the administrator's configured Dropbox account, so untrusted
+      users cannot supply normalization input. Remove this exception as soon as
+      a stable rclone image includes golang.org/x/text 0.39.0 or newer.
   - id: GHSA-hrxh-6v49-42gf
     paths:
       - "usr/local/bin/rclone"
