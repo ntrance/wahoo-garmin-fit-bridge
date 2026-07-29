@@ -1,4 +1,28 @@
 services:
+  volume-permissions:
+    build: .
+    user: "0:0"
+    command: ["python", "-m", "app.volume_permissions"]
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./data:/data
+      - ./appdata:/appdata
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 32
+    restart: "no"
+
   bridge:
     build: .
     container_name: wahoo-garmin-fit-bridge
@@ -9,6 +33,9 @@ services:
         required: false
     environment:
       PYTHONDONTWRITEBYTECODE: "1"
+    depends_on:
+      volume-permissions:
+        condition: service_completed_successfully
     volumes:
       - ./data:/data
       - ./appdata:/appdata

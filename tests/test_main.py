@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
@@ -168,6 +169,19 @@ def test_config_page_shows_auth_paths(settings):
     assert "Identify Garmin Device" in response.text
     assert "Garmin Account and Upload Profile" in response.text
     assert "Garmin Session Upload" in response.text
+    assert "iGPSPORT: Ready" not in response.text
+    assert 'id="igpsport_username"' not in response.text
+
+
+def test_config_page_shows_igpsport_only_when_enabled(settings):
+    enabled_settings = replace(settings, igpsport_source_enabled=True)
+    app = create_app(enabled_settings, start_background=False)
+    with TestClient(app) as client:
+        response = client.get("/config")
+
+    assert response.status_code == 200
+    assert "iGPSPORT: Needs setup" in response.text
+    assert 'id="igpsport_username"' in response.text
     assert "Account region" in response.text
     assert "International" in response.text
     assert "China" in response.text
@@ -193,6 +207,7 @@ def test_igpsport_profile_rejects_unsupported_api_host(settings):
 
 
 def test_config_never_renders_igpsport_password_or_token(settings):
+    settings = replace(settings, igpsport_source_enabled=True)
     store = IGPSportStore(settings.igpsport_config_dir)
     store.save_profile(
         username="masked@example.test",
@@ -630,6 +645,10 @@ def test_config_save_writes_runtime_config(settings):
 
 def test_config_save_supports_both_activity_sources(settings):
     app = create_app(settings, start_background=False)
+    scheduler_updates = []
+    app.state.scheduler = SimpleNamespace(
+        reconfigure=lambda manager, service: scheduler_updates.append((manager, service))
+    )
     with TestClient(app) as client:
         response = client.post(
             "/config/save",
@@ -651,6 +670,7 @@ def test_config_save_supports_both_activity_sources(settings):
     assert response.status_code == 303
     assert app.state.settings.dropbox_source_enabled
     assert app.state.settings.igpsport_source_enabled
+    assert scheduler_updates == [(app.state.source_manager, app.state.service)]
     saved = settings.runtime_config_path.read_text()
     assert "DROPBOX_SOURCE_ENABLED=true" in saved
     assert "IGPSPORT_SOURCE_ENABLED=true" in saved

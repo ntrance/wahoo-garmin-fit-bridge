@@ -7,6 +7,7 @@ from app.db import Database
 from app.fit_metadata import FitMetadata
 from app.jobs import BridgeService
 from app.source_manager import SourceManager
+from app.source_scheduler import SourceScheduler
 from app.sources.base import (
     SourceFileMetadata,
     SourceResult,
@@ -42,6 +43,23 @@ class FakeSource:
 
     def delete_remote_activity(self, external_id):
         return SourceResult(True, "delete", external_id)
+
+
+def test_scheduler_reconfigure_forces_sources_due(settings):
+    database = Database(settings.sqlite_path)
+    first_manager = SourceManager(settings, database)
+    first_bridge = BridgeService(settings, database)
+    scheduler = SourceScheduler(first_manager, first_bridge)
+    scheduler._next_runs["dropbox"] = 999.0
+
+    updated_settings = replace(settings, igpsport_source_enabled=True)
+    updated_manager = SourceManager(updated_settings, database)
+    updated_bridge = BridgeService(updated_settings, database)
+    scheduler.reconfigure(updated_manager, updated_bridge)
+
+    assert scheduler.source_manager is updated_manager
+    assert scheduler.bridge is updated_bridge
+    assert scheduler._next_runs == {}
 
 
 def test_source_manager_continues_after_one_source_fails(settings):

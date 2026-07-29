@@ -20,6 +20,11 @@ class SourceScheduler:
         self._tasks: set[asyncio.Task[None]] = set()
         self._last_local_scan = 0.0
 
+    def reconfigure(self, source_manager: SourceManager, bridge: BridgeService) -> None:
+        self.source_manager = source_manager
+        self.bridge = bridge
+        self._next_runs.clear()
+
     async def run_forever(self) -> None:
         while True:
             now = time.monotonic()

@@ -565,10 +565,13 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         app.state.db = updated_db
         app.state.service = updated_service
         app.state.source_manager = updated_source_manager
+        scheduler = getattr(app.state, "scheduler", None)
+        if scheduler is not None:
+            scheduler.reconfigure(updated_source_manager, updated_service)
         app.state.setup_message = {
             "ok": True,
             "title": "Settings saved",
-            "output": "Saved to runtime config. Restart the bridge container so the background scanner uses the new values.",
+            "output": "Saved to runtime config. Background source polling has been updated.",
         }
         return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
 

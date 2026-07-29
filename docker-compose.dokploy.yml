@@ -1,4 +1,30 @@
 services:
+  volume-permissions:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    user: "0:0"
+    command: ["python", "-m", "app.volume_permissions"]
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - bridge_data:/data
+      - bridge_appdata:/appdata
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 32
+    restart: "no"
+
   bridge:
     build:
       context: .
@@ -11,6 +37,9 @@ services:
     volumes:
       - bridge_data:/data
       - bridge_appdata:/appdata
+    depends_on:
+      volume-permissions:
+        condition: service_completed_successfully
     ports:
       - "${WEB_PORT:-8088}:8080"
     restart: unless-stopped

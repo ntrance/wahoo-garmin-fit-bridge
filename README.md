@@ -108,6 +108,28 @@ Start the bridge:
 docker compose up -d --build
 ```
 
+Compose first runs a one-shot permission initializer for `/data` and `/appdata`,
+then starts the bridge as the unprivileged `bridge` user. Garmin and source
+accounts can be configured in either order and do not require restarts between
+them.
+
+Never use `chmod -R 777` on these directories. They contain account credentials,
+session tokens, FIT location history, and the activity database. Current releases
+automatically repair existing volume ownership and restrict directories to the
+container user during startup.
+
+The Config page stores runtime choices such as dry-run mode, enabled sources, and
+polling intervals in `/appdata/runtime.env`. Those saved values override matching
+defaults in `.env`; change them through Config after initial setup. Deployment
+settings such as `TZ` still come from `.env`. Recreate the container after changing
+those values:
+
+```bash
+docker compose up -d --force-recreate
+```
+
+`--build` is only needed after changing application code or the Docker image.
+
 Open `http://localhost:8088`, sign in, and keep dry-run mode enabled until the
 source and Garmin sections all report that setup is complete.
 
@@ -203,6 +225,16 @@ docker compose up -d
 Dry-run records are not automatically uploaded later. Reprocess an older activity
 only after confirming it is not already present in Garmin Connect.
 
+## Normal Operation
+
+After setup, no routine Config changes are required. Enabled sources are polled
+automatically and newly downloaded activities are uploaded to Garmin Connect.
+The Dashboard sync button can request an immediate check but is not required for
+normal operation. Saved Garmin and iGPSPORT sessions are reused and refreshed by
+their client libraries where supported. Return to Config only when credentials
+change, an authentication error requests attention, or you want to change sources,
+dry-run mode, or polling intervals.
+
 ## Duplicate Protection
 
 The bridge checks source activity IDs, remote metadata, FIT SHA256, activity
@@ -231,7 +263,9 @@ so encrypt them and keep them outside the repository.
 The web interface includes signed HttpOnly cookies, CSRF protection, login rate
 limiting, security headers, bounded uploads, private credential files, and output
 redaction. The container runs as an unprivileged user with a read-only root
-filesystem, dropped Linux capabilities, and `no-new-privileges`.
+filesystem, dropped Linux capabilities, and `no-new-privileges`. A one-shot
+initializer receives only the ownership-related capabilities needed to secure the
+persistent volumes, has no network access, and exits before the bridge starts.
 
 For stronger password storage:
 
@@ -280,6 +314,10 @@ environment settings.
 - Garmin and iGPSPORT may change their private authentication or upload endpoints.
 - Garmin decides how imported device information is displayed and whether an
   activity qualifies for a badge or challenge.
+- Uploading an activity to Garmin Connect does not guarantee that Garmin will
+  download it to a watch or recalculate device-side Recovery Time, Acute Load,
+  Training Effect, or activity history. Do not copy rewritten FIT files directly
+  into a Garmin device; that workflow is unsupported and can create duplicates.
 - A malformed FIT file may require a fresh export from the original source.
 
 ## Development

@@ -52,12 +52,16 @@
       <span class="badge {{ 'text-bg-success' if connections_complete else 'text-bg-warning' }}">
         {{ "Setup complete" if connections_complete else "Setup incomplete" }}
       </span>
+      {% if settings.dropbox_source_enabled %}
       <span class="badge {{ 'text-bg-success' if dropbox_ready else 'text-bg-warning' }}">
         Dropbox: {{ "Ready" if dropbox_ready else "Needs setup" }}
       </span>
+      {% endif %}
+      {% if settings.igpsport_source_enabled %}
       <span class="badge {{ 'text-bg-success' if igpsport_ready else 'text-bg-warning' }}">
         iGPSPORT: {{ "Ready" if igpsport_ready else "Needs setup" }}
       </span>
+      {% endif %}
       <span class="badge {{ 'text-bg-success' if setup.garmin.configured else 'text-bg-warning' }}">
         Garmin: {{ "Configured" if setup.garmin.configured else "Needs setup" }}
       </span>
@@ -113,15 +117,19 @@
           <label class="form-check-label" for="igpsport_source_enabled">iGPSPORT Cloud</label>
         </div>
       </div>
+      {% if settings.dropbox_source_enabled %}
       <div class="col-md-6">
         <label class="form-label" for="dropbox_poll_seconds">Dropbox polling interval (seconds)</label>
         <input class="form-control" id="dropbox_poll_seconds" name="dropbox_poll_seconds" type="number" min="10" value="{{ settings.dropbox_poll_seconds }}">
       </div>
+      {% endif %}
+      {% if settings.igpsport_source_enabled %}
       <div class="col-md-6">
         <label class="form-label" for="igpsport_poll_seconds">iGPSPORT polling interval (seconds)</label>
         <input class="form-control" id="igpsport_poll_seconds" name="igpsport_poll_seconds" type="number" min="{{ settings.igpsport_min_poll_seconds }}" value="{{ settings.igpsport_poll_seconds }}">
         <div class="form-text">Automatic cloud polling cannot run more often than every {{ settings.igpsport_min_poll_seconds }} seconds.</div>
       </div>
+      {% endif %}
       <div class="col-12">
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" id="dry_run" name="dry_run" {{ "checked" if settings.dry_run else "" }}>
@@ -147,7 +155,7 @@
         <button class="btn btn-primary btn-sm" type="submit">Sync all enabled sources now</button>
       </form>
       <div class="row g-3">
-        {% for source in source_statuses %}
+        {% for source in source_statuses if source.enabled %}
         <div class="col-12">
           <div class="border rounded p-3">
             <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
@@ -183,7 +191,8 @@
     </div>
   </details>
 
-  <details class="config-accordion border rounded mb-3" {{ "open" if settings.igpsport_source_enabled and not igpsport_configured else "" }}>
+  {% if settings.igpsport_source_enabled %}
+  <details class="config-accordion border rounded mb-3" {{ "open" if not igpsport_configured else "" }}>
     <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
       <h2 class="h5 mb-0">iGPSPORT Cloud</h2>
       <span class="badge {{ 'text-bg-success' if igpsport_configured else 'text-bg-warning' }}">
@@ -280,6 +289,7 @@
       </form>
     </div>
   </details>
+  {% endif %}
 
   <details class="config-accordion border rounded mb-3" {{ "open" if dropbox_oauth or not setup.dropbox.configured else "" }}>
     <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
