@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 mb-0">System Diagnostics & Load Metrics</h1>
+    <p class="text-muted mb-0">Real-time hardware performance monitoring & synthetic baseline benchmarks.</p>
+  </div>
+  <div>
+    <button id="runBenchmarkBtn" class="btn btn-primary d-flex align-items-center gap-2">
+      <span id="benchmarkSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+      <span id="benchmarkBtnText">⚡ Run System Benchmark</span>
+    </button>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- System Hardware & Tier -->
+  <div class="col-md-4">
+    <div class="card h-100 shadow-sm border-0 bg-body-tertiary">
+      <div class="card-body">
+        <h6 class="card-subtitle text-muted mb-2">Hardware Classifier</h6>
+        <h5 class="card-title text-primary">{{ status.hardware_tier }}</h5>
+        <hr>
+        <div class="d-flex justify-content-between text-sm mb-1">
+          <span class="text-muted">OS / Kernel:</span>
+          <strong>{{ status.platform_name }}</strong>
+        </div>
+        <div class="d-flex justify-content-between text-sm mb-1">
+          <span class="text-muted">Architecture:</span>
+          <code>{{ status.architecture }}</code>
+        </div>
+        <div class="d-flex justify-content-between text-sm">
+          <span class="text-muted">Python Version:</span>
+          <code>v{{ status.python_version }}</code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CPU & Process Load -->
+  <div class="col-md-4">
+    <div class="card h-100 shadow-sm border-0 bg-body-tertiary">
+      <div class="card-body">
+        <h6 class="card-subtitle text-muted mb-2">CPU & Load Averages</h6>
+        <h5 class="card-title">{{ status.cpu_cores }} Cores</h5>
+        <hr>
+        <div class="d-flex justify-content-between text-sm mb-1">
+          <span class="text-muted">Load (1m, 5m, 15m):</span>
+          <strong>{{ status.load_averages | join(", ") }}</strong>
+        </div>
+        <div class="d-flex justify-content-between text-sm mb-1">
+          <span class="text-muted">Process RSS RAM:</span>
+          <span class="badge bg-info text-dark">{{ status.process_rss_mb }} MB</span>
+        </div>
+        <div class="d-flex justify-content-between text-sm">
+          <span class="text-muted">Peak RSS RAM:</span>
+          <span class="badge bg-secondary">{{ status.process_peak_rss_mb }} MB</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Memory & Storage -->
+  <div class="col-md-4">
+    <div class="card h-100 shadow-sm border-0 bg-body-tertiary">
+      <div class="card-body">
+        <h6 class="card-subtitle text-muted mb-2">Host Memory & Storage</h6>
+        {% if status.total_ram_mb > 0 %}
+        <div class="mb-2">
+          <div class="d-flex justify-content-between text-sm mb-1">
+            <span class="text-muted">Host Memory Usage:</span>
+            <span>{{ status.available_ram_mb }} MB free / {{ status.total_ram_mb }} MB</span>
+          </div>
+          <div class="progress" style="height: 6px;">
+            <div class="progress-bar {% if status.ram_usage_pct > 80 %}bg-danger{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ status.ram_usage_pct }}%;"></div>
+          </div>
+        </div>
+        {% endif %}
+        <div class="d-flex justify-content-between text-sm mb-1">
+          <span class="text-muted">/appdata Free Space:</span>
+          <strong>{{ status.appdata_free_gb }} GB</strong>
+        </div>
+        <div class="d-flex justify-content-between text-sm">
+          <span class="text-muted">/data Free Space:</span>
+          <strong>{{ status.data_free_gb }} GB</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Database Settings & Storage Card -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-header bg-body-tertiary fw-semibold">
+    🗄️ SQLite Database Performance Settings
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-6 col-md-3">
+        <div class="p-2 border rounded text-center">
+          <small class="text-muted d-block mb-1">Journal Mode</small>
+          <span class="badge bg-primary fs-6">{{ status.sqlite_journal_mode }}</span>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="p-2 border rounded text-center">
+          <small class="text-muted d-block mb-1">Synchronous Mode</small>
+          <span class="badge {% if status.sqlite_synchronous == 'NORMAL' %}bg-success{% else %}bg-warning text-dark{% endif %} fs-6">
+            {{ status.sqlite_synchronous }}
+          </span>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="p-2 border rounded text-center">
+          <small class="text-muted d-block mb-1">Temp Store</small>
+          <span class="badge bg-secondary fs-6">{{ status.sqlite_temp_store }}</span>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="p-2 border rounded text-center">
+          <small class="text-muted d-block mb-1">Database File Size</small>
+          <span class="fw-bold fs-6">{{ (status.db_size_bytes / 1024) | round(1) }} KB</span>
+          {% if status.db_wal_size_bytes > 0 %}
+          <small class="text-muted d-block">(WAL: {{ (status.db_wal_size_bytes / 1024) | round(1) }} KB)</small>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Benchmark Results Display Container -->
+<div id="benchmarkResultsContainer" class="card shadow-sm border-0 d-none">
+  <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">📊 Synthetic Benchmark Results</span>
+    <span id="benchmarkTimestamp" class="badge bg-secondary"></span>
+  </div>
+  <div class="card-body">
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <div class="p-3 border rounded bg-body-tertiary">
+          <h6 class="text-muted mb-1">SQLite 100 Write Latency</h6>
+          <h4 id="dbWriteOps" class="mb-0 text-success">- ops/sec</h4>
+          <small id="dbWriteLatency" class="text-muted">Total: - ms | Avg: - ms</small>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="p-3 border rounded bg-body-tertiary">
+          <h6 class="text-muted mb-1">Disk I/O Speed (5 MB payload)</h6>
+          <h4 id="diskSpeed" class="mb-0 text-primary">W: - MB/s | R: - MB/s</h4>
+          <small class="text-muted">Sequential I/O throughput</small>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="p-3 border rounded bg-body-tertiary">
+          <h6 class="text-muted mb-1">FIT Parsing & SVG Render</h6>
+          <h4 id="fitParseTime" class="mb-0 text-warning text-dark">- ms</h4>
+          <small id="fitParseDetails" class="text-muted">Activity preview render latency</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-3 border rounded bg-light">
+      <h6 class="fw-semibold mb-2">Raw JSON Execution Output</h6>
+      <pre id="rawBenchmarkJson" class="mb-0 text-monospace small" style="max-height: 250px; overflow-y: auto;"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('runBenchmarkBtn').addEventListener('click', async function() {
+  const btn = this;
+  const spinner = document.getElementById('benchmarkSpinner');
+  const btnText = document.getElementById('benchmarkBtnText');
+  const resultsContainer = document.getElementById('benchmarkResultsContainer');
+
+  btn.disabled = true;
+  spinner.classList.remove('d-none');
+  btnText.textContent = 'Running Benchmark...';
+
+  try {
+    const response = await fetch('/api/benchmark', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    const data = await response.json();
+    resultsContainer.classList.remove('d-none');
+    document.getElementById('benchmarkTimestamp').textContent = data.timestamp;
+
+    if (data.db_writes && !data.db_writes.error) {
+      document.getElementById('dbWriteOps').textContent = `${data.db_writes.ops_per_sec} ops/sec`;
+      document.getElementById('dbWriteLatency').textContent = `Total: ${data.db_writes.total_ms} ms | Avg: ${data.db_writes.avg_latency_ms} ms/op`;
+    }
+
+    if (data.disk_io && !data.disk_io.error) {
+      document.getElementById('diskSpeed').textContent = `W: ${data.disk_io.write_mbps} MB/s | R: ${data.disk_io.read_mbps} MB/s`;
+    }
+
+    if (data.fit_parsing) {
+      if (data.fit_parsing.parsing_duration_ms) {
+        document.getElementById('fitParseTime').textContent = `${data.fit_parsing.parsing_duration_ms} ms`;
+        document.getElementById('fitParseDetails').textContent = `File: ${data.fit_parsing.filename} | SVG: ${data.fit_parsing.svg_bytes} bytes`;
+      } else {
+        document.getElementById('fitParseTime').textContent = `N/A`;
+        document.getElementById('fitParseDetails').textContent = data.fit_parsing.message || 'No sample .fit file';
+      }
+    }
+
+    document.getElementById('rawBenchmarkJson').textContent = JSON.stringify(data, null, 2);
+  } catch (err) {
+    alert(`Benchmark execution failed: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    spinner.classList.add('d-none');
+    btnText.textContent = '⚡ Run System Benchmark';
+  }
+});
+</script>
+{% endblock %}

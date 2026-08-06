@@ -48,6 +48,7 @@ from app.setup_status import (
 )
 from app.setup_status import save_dropbox_auth, save_garmin_profile
 from app.settings import IGPSPORT_REGIONS, Settings
+from app.system_metrics import get_system_status, run_system_benchmark
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -944,6 +945,24 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         result = await asyncio.to_thread(test_garmin_upload, app.state.settings)
         app.state.setup_message = result.__dict__
         return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.get("/system", response_class=HTMLResponse)
+    async def system_page(request: Request, _auth: None = Depends(require_auth)) -> HTMLResponse:
+        status_info = get_system_status(request.app.state.settings, request.app.state.db)
+        return templates.TemplateResponse(
+            request,
+            "system.html",
+            context(request) | {"status": status_info},
+        )
+
+    @app.post("/api/benchmark")
+    async def run_benchmark(request: Request, _auth: None = Depends(require_auth)) -> JSONResponse:
+        result = await asyncio.to_thread(
+            run_system_benchmark,
+            request.app.state.settings,
+            request.app.state.db,
+        )
+        return JSONResponse(result)
 
     @app.get("/logs", response_class=HTMLResponse)
     async def logs(request: Request, _auth: None = Depends(require_auth)) -> HTMLResponse:
