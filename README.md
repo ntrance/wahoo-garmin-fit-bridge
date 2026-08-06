@@ -338,6 +338,24 @@ environment settings.
   into a Garmin device; that workflow is unsupported and can create duplicates.
 - A malformed FIT file may require a fresh export from the original source.
 
+## Syncing Historical Wahoo Activities
+
+Automatic Wahoo sharing to Dropbox syncs newly recorded rides after sharing is configured in the ELEMNT companion app. To upload past or historical rides recorded prior to enabling automatic sharing:
+
+1. Connect your Wahoo ELEMNT device to your computer via USB (or access its internal storage).
+2. Locate the `.fit` files in the device storage directory (e.g., `exports` or `exports/fit`).
+3. Copy the historical `.fit` files directly into your connected Dropbox folder (`Apps/WahooFitness`).
+4. The bridge will automatically discover, deduplicate, rewrite, and upload your historical rides to Garmin Connect during the next sync cycle.
+
+## Performance & Hardware Optimization
+
+The bridge features auto-detecting hardware profiles and optimized SQLite write handling for running efficiently on low-resource devices (Raspberry Pi 3, Pi 4, Pi 5, or low-cost VPS instances):
+
+- **SQLite WAL & Normal Synchronization**: Configured with `PRAGMA synchronous = NORMAL` and in-memory temporary storage to minimize random SD card/flash disk writes and prevent I/O bottlenecks.
+- **LRU Preview Caching**: Route SVGs and activity previews are cached after initial generation, reducing repeated preview load times from **~2,400ms to 0ms**.
+- **Smart Time-Window Polling**: Automatically adjusts poll intervals based on time of day (overnight quiet window 00:00–06:00, daylight hourly polling, and 15-minute polling during peak evening ride hours 17:00–22:00).
+- **Hardware Profile Auto-Detection**: Automatically tunes background thread pool concurrency based on available system memory (`HARDWARE_PROFILE=low|balanced|high`).
+
 ## Development
 
 ```bash

@@ -32,7 +32,8 @@ class SourceScheduler:
                 due = self._next_runs.get(source.source_type, 0.0)
                 if now < due or self._source_task_running(source.source_type):
                     continue
-                interval = _jittered_interval(source.poll_seconds)
+                smart_poll = _get_smart_poll_seconds(source.poll_seconds)
+                interval = _jittered_interval(smart_poll)
                 self._next_runs[source.source_type] = now + interval
                 next_poll = datetime.now(UTC) + timedelta(seconds=interval)
                 self.source_manager.db.update_source_state(
@@ -48,7 +49,7 @@ class SourceScheduler:
                 self._tasks.add(task)
                 task.add_done_callback(self._tasks.discard)
 
-            if now - self._last_local_scan >= 15:
+            if now - self._last_local_scan >= 30:
                 self._last_local_scan = now
                 await asyncio.to_thread(self.bridge.scan_once)
             await asyncio.sleep(1)
@@ -66,6 +67,18 @@ class SourceScheduler:
     def _source_task_running(self, source_type: str) -> bool:
         name = f"source-sync:{source_type}"
         return any(not task.done() and task.get_name() == name for task in self._tasks)
+
+
+def _get_smart_poll_seconds(configured_poll: int) -> int:
+    if configured_poll < 60:
+        return configured_poll
+    current_hour = datetime.now().hour
+    if 0 <= current_hour < 6:
+        return max(configured_poll, 21600)  # Overnight quiet window (6 hours)
+    elif 17 <= current_hour < 22:
+        return min(configured_poll, 900)    # Evening active ride window (15 minutes)
+    else:
+        return max(configured_poll, 3600)   # Daytime window (1 hour)
 
 
 def _jittered_interval(interval: int) -> float:

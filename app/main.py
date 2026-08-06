@@ -53,6 +53,10 @@ from app.system_metrics import get_system_status, run_system_benchmark
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
+from concurrent.futures import ThreadPoolExecutor
+from app.hardware import get_hardware_profile
+
+
 def create_app(settings: Settings | None = None, start_background: bool = True) -> FastAPI:
     settings = settings or Settings.from_env()
     configure_logging(settings)
@@ -66,6 +70,11 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
     )
     @asynccontextmanager
     async def lifespan(app_instance: FastAPI):
+        hw = get_hardware_profile()
+        loop = asyncio.get_running_loop()
+        executor = ThreadPoolExecutor(max_workers=hw.max_workers)
+        loop.set_default_executor(executor)
+
         runtime_settings = app_instance.state.settings
         runtime_service = app_instance.state.service
         runtime_settings.validate_security()
@@ -83,6 +92,7 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             task = getattr(app_instance.state, "scan_task", None)
             if task is not None:
                 task.cancel()
+            executor.shutdown(wait=False)
 
     app = FastAPI(title=settings.app_name, lifespan=lifespan)
     app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")

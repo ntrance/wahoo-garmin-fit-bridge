@@ -18,6 +18,9 @@ class ActivityPreview:
     summary: dict[str, str]
 
 
+from functools import lru_cache
+
+
 def build_activity_preview(activity: dict[str, object]) -> ActivityPreview:
     path = _activity_file_path(activity)
     if path is None:
@@ -25,6 +28,16 @@ def build_activity_preview(activity: dict[str, object]) -> ActivityPreview:
     if not path.exists():
         return ActivityPreview(False, f"FIT file is not currently available at {path}.", None, None, [], {})
 
+    try:
+        stat = path.stat()
+        return _build_activity_preview_cached(str(path.resolve()), stat.st_mtime, stat.st_size)
+    except Exception as exc:  # pragma: no cover - decoder errors vary by FIT file
+        return ActivityPreview(False, f"Could not read FIT preview data: {exc}", None, None, [], {})
+
+
+@lru_cache(maxsize=128)
+def _build_activity_preview_cached(path_str: str, mtime: float, size: int) -> ActivityPreview:
+    path = Path(path_str)
     try:
         from garmin_fit_sdk import Decoder, Stream
 

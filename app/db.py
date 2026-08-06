@@ -50,6 +50,9 @@ class Database:
         conn.execute("PRAGMA busy_timeout = 30000")
         if not self._wal_set:
             conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = NORMAL")
+            conn.execute("PRAGMA temp_store = MEMORY")
+            conn.execute("PRAGMA cache_size = -2000")
             self._wal_set = True
         return conn
 
