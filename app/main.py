@@ -949,10 +949,15 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
     @app.get("/system", response_class=HTMLResponse)
     async def system_page(request: Request, _auth: None = Depends(require_auth)) -> HTMLResponse:
         status_info = get_system_status(request.app.state.settings, request.app.state.db)
+        benchmark_results = await asyncio.to_thread(
+            run_system_benchmark,
+            request.app.state.settings,
+            request.app.state.db,
+        )
         return templates.TemplateResponse(
             request,
             "system.html",
-            context(request) | {"status": status_info},
+            context(request) | {"status": status_info, "benchmark": benchmark_results},
         )
 
     @app.api_route("/api/benchmark", methods=["GET", "POST"])

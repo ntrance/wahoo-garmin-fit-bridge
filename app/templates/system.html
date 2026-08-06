@@ -9,7 +9,7 @@
   <div>
     <button id="runBenchmarkBtn" class="btn btn-primary d-flex align-items-center gap-2">
       <span id="benchmarkSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-      <span id="benchmarkBtnText">⚡ Run System Benchmark</span>
+      <span id="benchmarkBtnText">⚡ Re-run Benchmark</span>
     </button>
   </div>
 </div>
@@ -133,103 +133,77 @@
 <!-- Benchmark Error Alert -->
 <div id="benchmarkErrorAlert" class="alert alert-danger d-none mb-4" role="alert"></div>
 
-<!-- Benchmark Results Display Container -->
-<div id="benchmarkResultsContainer" class="card shadow-sm border-0 d-none">
+<!-- Benchmark Results Display Container (ALWAYS VISIBLE) -->
+<div id="benchmarkResultsContainer" class="card shadow-sm border-0 mb-4">
   <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
     <span class="fw-semibold">📊 Synthetic Benchmark Results</span>
-    <span id="benchmarkTimestamp" class="badge bg-secondary"></span>
+    <span id="benchmarkTimestamp" class="badge bg-secondary">{{ benchmark.timestamp if benchmark else "" }}</span>
   </div>
   <div class="card-body">
     <div class="row g-3 mb-3">
       <div class="col-md-4">
         <div class="p-3 border rounded bg-body-tertiary">
           <h6 class="text-muted mb-1">SQLite 100 Write Latency</h6>
-          <h4 id="dbWriteOps" class="mb-0 text-success">- ops/sec</h4>
-          <small id="dbWriteLatency" class="text-muted">Total: - ms | Avg: - ms</small>
+          <h4 id="dbWriteOps" class="mb-0 text-success">
+            {% if benchmark and benchmark.db_writes and not benchmark.db_writes.error %}
+              {{ benchmark.db_writes.ops_per_sec }} ops/sec
+            {% else %}
+              - ops/sec
+            {% endif %}
+          </h4>
+          <small id="dbWriteLatency" class="text-muted">
+            {% if benchmark and benchmark.db_writes and not benchmark.db_writes.error %}
+              Total: {{ benchmark.db_writes.total_ms }} ms | Avg: {{ benchmark.db_writes.avg_latency_ms }} ms/op
+            {% else %}
+              Total: - ms | Avg: - ms
+            {% endif %}
+          </small>
         </div>
       </div>
       <div class="col-md-4">
         <div class="p-3 border rounded bg-body-tertiary">
           <h6 class="text-muted mb-1">Disk I/O Speed (5 MB payload)</h6>
-          <h4 id="diskSpeed" class="mb-0 text-primary">W: - MB/s | R: - MB/s</h4>
+          <h4 id="diskSpeed" class="mb-0 text-primary">
+            {% if benchmark and benchmark.disk_io and not benchmark.disk_io.error %}
+              W: {{ benchmark.disk_io.write_mbps }} MB/s | R: {{ benchmark.disk_io.read_mbps }} MB/s
+            {% else %}
+              W: - MB/s | R: - MB/s
+            {% endif %}
+          </h4>
           <small class="text-muted">Sequential I/O throughput</small>
         </div>
       </div>
       <div class="col-md-4">
         <div class="p-3 border rounded bg-body-tertiary">
           <h6 class="text-muted mb-1">FIT Parsing & SVG Render</h6>
-          <h4 id="fitParseTime" class="mb-0 text-warning text-dark">- ms</h4>
-          <small id="fitParseDetails" class="text-muted">Activity preview render latency</small>
+          <h4 id="fitParseTime" class="mb-0 text-warning text-dark">
+            {% if benchmark and benchmark.fit_parsing and benchmark.fit_parsing.parsing_duration_ms %}
+              {{ benchmark.fit_parsing.parsing_duration_ms }} ms
+            {% else %}
+              N/A
+            {% endif %}
+          </h4>
+          <small id="fitParseDetails" class="text-muted">
+            {% if benchmark and benchmark.fit_parsing and benchmark.fit_parsing.filename %}
+              File: {{ benchmark.fit_parsing.filename }} | SVG: {{ benchmark.fit_parsing.svg_bytes }} bytes
+            {% else %}
+              {{ benchmark.fit_parsing.message if benchmark and benchmark.fit_parsing else "No sample .fit file" }}
+            {% endif %}
+          </small>
         </div>
       </div>
     </div>
 
     <div class="p-3 border rounded bg-light">
       <h6 class="fw-semibold mb-2">Raw JSON Execution Output</h6>
-      <pre id="rawBenchmarkJson" class="mb-0 text-monospace small" style="max-height: 250px; overflow-y: auto;"></pre>
+      <pre id="rawBenchmarkJson" class="mb-0 text-monospace small" style="max-height: 250px; overflow-y: auto;">{{ benchmark | tojson(indent=2) if benchmark else "{}" }}</pre>
     </div>
   </div>
 </div>
 
 <script>
-document.getElementById('runBenchmarkBtn').addEventListener('click', async function() {
-  const btn = this;
-  const spinner = document.getElementById('benchmarkSpinner');
-  const btnText = document.getElementById('benchmarkBtnText');
-  const resultsContainer = document.getElementById('benchmarkResultsContainer');
-  const errorAlert = document.getElementById('benchmarkErrorAlert');
-
-  btn.disabled = true;
-  spinner.classList.remove('d-none');
-  btnText.textContent = 'Running Benchmark...';
-  errorAlert.classList.add('d-none');
-
-  try {
-    const response = await fetch('/api/benchmark', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': '{{ csrf_token }}'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    resultsContainer.classList.remove('d-none');
-    document.getElementById('benchmarkTimestamp').textContent = data.timestamp;
-
-    if (data.db_writes && !data.db_writes.error) {
-      document.getElementById('dbWriteOps').textContent = `${data.db_writes.ops_per_sec} ops/sec`;
-      document.getElementById('dbWriteLatency').textContent = `Total: ${data.db_writes.total_ms} ms | Avg: ${data.db_writes.avg_latency_ms} ms/op`;
-    }
-
-    if (data.disk_io && !data.disk_io.error) {
-      document.getElementById('diskSpeed').textContent = `W: ${data.disk_io.write_mbps} MB/s | R: ${data.disk_io.read_mbps} MB/s`;
-    }
-
-    if (data.fit_parsing) {
-      if (data.fit_parsing.parsing_duration_ms) {
-        document.getElementById('fitParseTime').textContent = `${data.fit_parsing.parsing_duration_ms} ms`;
-        document.getElementById('fitParseDetails').textContent = `File: ${data.fit_parsing.filename} | SVG: ${data.fit_parsing.svg_bytes} bytes`;
-      } else {
-        document.getElementById('fitParseTime').textContent = `N/A`;
-        document.getElementById('fitParseDetails').textContent = data.fit_parsing.message || 'No sample .fit file';
-      }
-    }
-
-    document.getElementById('rawBenchmarkJson').textContent = JSON.stringify(data, null, 2);
-  } catch (err) {
-    errorAlert.textContent = `Benchmark Error: ${err.message}`;
-    errorAlert.classList.remove('d-none');
-  } finally {
-    btn.disabled = false;
-    spinner.classList.add('d-none');
-    btnText.textContent = '⚡ Run System Benchmark';
-  }
+document.getElementById('runBenchmarkBtn').addEventListener('click', function() {
+  window.location.reload();
 });
 </script>
 {% endblock %}
