@@ -955,7 +955,7 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             context(request) | {"status": status_info},
         )
 
-    @app.post("/api/benchmark")
+    @app.api_route("/api/benchmark", methods=["GET", "POST"])
     async def run_benchmark(request: Request, _auth: None = Depends(require_auth)) -> JSONResponse:
         result = await asyncio.to_thread(
             run_system_benchmark,

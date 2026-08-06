@@ -130,6 +130,9 @@
   </div>
 </div>
 
+<!-- Benchmark Error Alert -->
+<div id="benchmarkErrorAlert" class="alert alert-danger d-none mb-4" role="alert"></div>
+
 <!-- Benchmark Results Display Container -->
 <div id="benchmarkResultsContainer" class="card shadow-sm border-0 d-none">
   <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
@@ -174,21 +177,25 @@ document.getElementById('runBenchmarkBtn').addEventListener('click', async funct
   const spinner = document.getElementById('benchmarkSpinner');
   const btnText = document.getElementById('benchmarkBtnText');
   const resultsContainer = document.getElementById('benchmarkResultsContainer');
+  const errorAlert = document.getElementById('benchmarkErrorAlert');
 
   btn.disabled = true;
   spinner.classList.remove('d-none');
   btnText.textContent = 'Running Benchmark...';
+  errorAlert.classList.add('d-none');
 
   try {
     const response = await fetch('/api/benchmark', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
+        'X-CSRF-Token': '{{ csrf_token }}'
       }
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error ${response.status}`);
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
@@ -216,7 +223,8 @@ document.getElementById('runBenchmarkBtn').addEventListener('click', async funct
 
     document.getElementById('rawBenchmarkJson').textContent = JSON.stringify(data, null, 2);
   } catch (err) {
-    alert(`Benchmark execution failed: ${err.message}`);
+    errorAlert.textContent = `Benchmark Error: ${err.message}`;
+    errorAlert.classList.remove('d-none');
   } finally {
     btn.disabled = false;
     spinner.classList.add('d-none');
