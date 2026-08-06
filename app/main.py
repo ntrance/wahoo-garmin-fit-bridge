@@ -260,7 +260,11 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         activity_messages = getattr(app.state, "activity_messages", {})
         activity_message = activity_messages.pop(activity_id, None)
         app.state.activity_messages = activity_messages
-        preview = await asyncio.to_thread(build_activity_preview, activity)
+        preview = await asyncio.to_thread(
+            build_activity_preview,
+            activity,
+            request.app.state.settings.previews_dir,
+        )
         return templates.TemplateResponse(
             request,
             "activity.html",

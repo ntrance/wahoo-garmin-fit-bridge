@@ -54,6 +54,7 @@ def settings(tmp_path: Path) -> Settings:
         garmin_profile_name="wahoo",
         garmin_device_name="Fenix 6X Pro",
         garmin_unit_id="12345",
+        previews_dir=tmp_path / "data" / "previews",
     )
 
 

@@ -243,6 +243,11 @@ class BridgeService:
         )
         self._link_source_item(source, int(activity["id"]))
         remove_source_sidecar(fit_path)
+        try:
+            from app.fit_preview import prebuild_activity_preview
+            prebuild_activity_preview(dict(activity), self.settings.previews_dir)
+        except Exception:
+            pass
         logger.info("Discovered %s FIT file: %s", source.source_display_name, fit_path)
         return True
 

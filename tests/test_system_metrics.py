@@ -48,3 +48,20 @@ def test_system_endpoints(settings: Settings):
         data = res_bench.json()
         assert "total_duration_ms" in data
         assert "db_writes" in data
+
+
+def test_disk_preview_cache(tmp_path):
+    from app.fit_preview import ActivityPreview, save_preview_to_disk, load_preview_from_disk, build_activity_preview
+    previews_dir = tmp_path / "previews"
+    preview = ActivityPreview(True, "OK", "<svg></svg>", None, [], {"Duration": "10m"})
+    save_preview_to_disk(123, preview, previews_dir)
+
+    loaded = load_preview_from_disk(123, previews_dir)
+    assert loaded is not None
+    assert loaded.available is True
+    assert loaded.route_svg == "<svg></svg>"
+    assert loaded.summary == {"Duration": "10m"}
+
+    activity = {"id": 123, "current_path": str(tmp_path / "missing.fit")}
+    cached = build_activity_preview(activity, previews_dir)
+    assert cached.route_svg == "<svg></svg>"

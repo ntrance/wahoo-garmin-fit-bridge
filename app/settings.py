@@ -73,6 +73,7 @@ class Settings:
     garmin_profile_name: str
     garmin_device_name: str
     garmin_unit_id: str
+    previews_dir: Path = Path("/data/previews")
     smart_scheduling_enabled: bool = True
     quiet_window_start: int = 0
     quiet_window_end: int = 6
@@ -158,6 +159,7 @@ class Settings:
             ),
             garmin_device_name=os.getenv("GARMIN_DEVICE_NAME", "Garmin Device"),
             garmin_unit_id=os.getenv("GARMIN_UNIT_ID", ""),
+            previews_dir=Path(os.getenv("PREVIEWS_DIR", "/data/previews")),
             smart_scheduling_enabled=_bool_env("SMART_SCHEDULING_ENABLED", True),
             quiet_window_start=_int_env("QUIET_WINDOW_START", 0),
             quiet_window_end=_int_env("QUIET_WINDOW_END", 6),
@@ -197,6 +199,7 @@ class Settings:
             self.detected_devices_path.parent,
             self.garmin_config_dir,
             self.igpsport_config_dir,
+            self.previews_dir,
         ):
             directory.mkdir(parents=True, exist_ok=True)
 
