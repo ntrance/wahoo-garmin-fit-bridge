@@ -173,6 +173,14 @@ def save_runtime_config(settings: Settings, updates: dict[str, str]) -> None:
         "IGPSPORT_SOURCE_ENABLED",
         "DROPBOX_POLL_SECONDS",
         "IGPSPORT_POLL_SECONDS",
+        "SMART_SCHEDULING_ENABLED",
+        "QUIET_WINDOW_START",
+        "QUIET_WINDOW_END",
+        "QUIET_WINDOW_POLL_MINS",
+        "PEAK_WINDOW_START",
+        "PEAK_WINDOW_END",
+        "PEAK_WINDOW_POLL_MINS",
+        "DAYLIGHT_WINDOW_POLL_MINS",
     ]
     lines = [f"{key}={_quote_env(existing.get(key, ''))}" for key in allowed_keys]
     write_private_text(settings.runtime_config_path, "\n".join(lines) + "\n")

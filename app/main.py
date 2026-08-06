@@ -550,6 +550,14 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 form.get("igpsport_poll_seconds"),
                 str(runtime_settings.igpsport_poll_seconds),
             ),
+            "SMART_SCHEDULING_ENABLED": "true" if form.get("smart_scheduling_enabled") == "on" else "false",
+            "QUIET_WINDOW_START": _form_text(form.get("quiet_window_start"), str(runtime_settings.quiet_window_start)),
+            "QUIET_WINDOW_END": _form_text(form.get("quiet_window_end"), str(runtime_settings.quiet_window_end)),
+            "QUIET_WINDOW_POLL_MINS": _form_text(form.get("quiet_window_poll_mins"), str(runtime_settings.quiet_window_poll_mins)),
+            "PEAK_WINDOW_START": _form_text(form.get("peak_window_start"), str(runtime_settings.peak_window_start)),
+            "PEAK_WINDOW_END": _form_text(form.get("peak_window_end"), str(runtime_settings.peak_window_end)),
+            "PEAK_WINDOW_POLL_MINS": _form_text(form.get("peak_window_poll_mins"), str(runtime_settings.peak_window_poll_mins)),
+            "DAYLIGHT_WINDOW_POLL_MINS": _form_text(form.get("daylight_window_poll_mins"), str(runtime_settings.daylight_window_poll_mins)),
         }
         save_runtime_config(runtime_settings, updates)
         updated_settings = replace(
@@ -566,6 +574,14 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 int(updates["IGPSPORT_POLL_SECONDS"]),
                 runtime_settings.igpsport_min_poll_seconds,
             ),
+            smart_scheduling_enabled=updates["SMART_SCHEDULING_ENABLED"] == "true",
+            quiet_window_start=int(updates["QUIET_WINDOW_START"]),
+            quiet_window_end=int(updates["QUIET_WINDOW_END"]),
+            quiet_window_poll_mins=int(updates["QUIET_WINDOW_POLL_MINS"]),
+            peak_window_start=int(updates["PEAK_WINDOW_START"]),
+            peak_window_end=int(updates["PEAK_WINDOW_END"]),
+            peak_window_poll_mins=int(updates["PEAK_WINDOW_POLL_MINS"]),
+            daylight_window_poll_mins=int(updates["DAYLIGHT_WINDOW_POLL_MINS"]),
         )
         updated_db = Database(updated_settings.sqlite_path)
         updated_service = BridgeService(updated_settings, updated_db)

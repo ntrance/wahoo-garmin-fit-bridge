@@ -32,7 +32,7 @@ class SourceScheduler:
                 due = self._next_runs.get(source.source_type, 0.0)
                 if now < due or self._source_task_running(source.source_type):
                     continue
-                smart_poll = _get_smart_poll_seconds(source.poll_seconds)
+                smart_poll = _get_smart_poll_seconds(source.poll_seconds, self.source_manager.settings)
                 interval = _jittered_interval(smart_poll)
                 self._next_runs[source.source_type] = now + interval
                 next_poll = datetime.now(UTC) + timedelta(seconds=interval)
@@ -69,16 +69,29 @@ class SourceScheduler:
         return any(not task.done() and task.get_name() == name for task in self._tasks)
 
 
-def _get_smart_poll_seconds(configured_poll: int) -> int:
+def _get_smart_poll_seconds(configured_poll: int, settings: Any = None) -> int:
+    if settings and not getattr(settings, "smart_scheduling_enabled", True):
+        return configured_poll
     if configured_poll < 60:
         return configured_poll
+
     current_hour = datetime.now().hour
-    if 0 <= current_hour < 6:
-        return max(configured_poll, 21600)  # Overnight quiet window (6 hours)
-    elif 17 <= current_hour < 22:
-        return min(configured_poll, 900)    # Evening active ride window (15 minutes)
+    q_start = getattr(settings, "quiet_window_start", 0) if settings else 0
+    q_end = getattr(settings, "quiet_window_end", 6) if settings else 6
+    q_poll_sec = (getattr(settings, "quiet_window_poll_mins", 360) if settings else 360) * 60
+
+    p_start = getattr(settings, "peak_window_start", 17) if settings else 17
+    p_end = getattr(settings, "peak_window_end", 22) if settings else 22
+    p_poll_sec = (getattr(settings, "peak_window_poll_mins", 15) if settings else 15) * 60
+
+    d_poll_sec = (getattr(settings, "daylight_window_poll_mins", 60) if settings else 60) * 60
+
+    if q_start <= current_hour < q_end:
+        return max(configured_poll, q_poll_sec)
+    elif p_start <= current_hour < p_end:
+        return min(configured_poll, p_poll_sec)
     else:
-        return max(configured_poll, 3600)   # Daytime window (1 hour)
+        return max(configured_poll, d_poll_sec)
 
 
 def _jittered_interval(interval: int) -> float:

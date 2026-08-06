@@ -39,7 +39,7 @@ def test_system_endpoints(settings: Settings):
         # Test GET /system
         res_system = client.get("/system")
         assert res_system.status_code == 200
-        assert "System Diagnostics" in res_system.text
+        assert "System Test" in res_system.text
         assert "Hardware Classifier" in res_system.text
 
         # Test POST /api/benchmark

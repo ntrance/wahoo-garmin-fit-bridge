@@ -73,6 +73,14 @@ class Settings:
     garmin_profile_name: str
     garmin_device_name: str
     garmin_unit_id: str
+    smart_scheduling_enabled: bool = True
+    quiet_window_start: int = 0
+    quiet_window_end: int = 6
+    quiet_window_poll_mins: int = 360
+    peak_window_start: int = 17
+    peak_window_end: int = 22
+    peak_window_poll_mins: int = 15
+    daylight_window_poll_mins: int = 60
 
     @classmethod
     def from_env(cls, env_file: str | Path | None = None) -> "Settings":
@@ -150,6 +158,14 @@ class Settings:
             ),
             garmin_device_name=os.getenv("GARMIN_DEVICE_NAME", "Garmin Device"),
             garmin_unit_id=os.getenv("GARMIN_UNIT_ID", ""),
+            smart_scheduling_enabled=_bool_env("SMART_SCHEDULING_ENABLED", True),
+            quiet_window_start=_int_env("QUIET_WINDOW_START", 0),
+            quiet_window_end=_int_env("QUIET_WINDOW_END", 6),
+            quiet_window_poll_mins=_int_env("QUIET_WINDOW_POLL_MINS", 360),
+            peak_window_start=_int_env("PEAK_WINDOW_START", 17),
+            peak_window_end=_int_env("PEAK_WINDOW_END", 22),
+            peak_window_poll_mins=_int_env("PEAK_WINDOW_POLL_MINS", 15),
+            daylight_window_poll_mins=_int_env("DAYLIGHT_WINDOW_POLL_MINS", 60),
         )
 
     def validate_security(self) -> None:

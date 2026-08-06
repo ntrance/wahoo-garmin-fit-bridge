@@ -3,14 +3,16 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
-    <h1 class="h3 mb-0">System Diagnostics & Load Metrics</h1>
+    <h1 class="h3 mb-0">System Test & Load Diagnostics</h1>
     <p class="text-muted mb-0">Real-time hardware performance monitoring & synthetic baseline benchmarks.</p>
   </div>
   <div>
-    <button id="runBenchmarkBtn" class="btn btn-primary d-flex align-items-center gap-2">
-      <span id="benchmarkSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-      <span id="benchmarkBtnText">⚡ Re-run Benchmark</span>
-    </button>
+    <form method="get" action="/system" class="m-0">
+      <button type="submit" id="runBenchmarkBtn" class="btn btn-primary d-flex align-items-center gap-2">
+        <span id="benchmarkSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+        <span id="benchmarkBtnText">⚡ Re-run Benchmark</span>
+      </button>
+    </form>
   </div>
 </div>
 

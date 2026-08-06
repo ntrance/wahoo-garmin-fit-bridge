@@ -136,6 +136,65 @@
         <div class="form-text">Automatic cloud polling cannot run more often than every {{ settings.igpsport_min_poll_seconds }} seconds.</div>
       </div>
       {% endif %}
+      <div class="col-12 mt-3">
+        <div class="border rounded p-3 bg-light">
+          <h6 class="fw-bold mb-2">⚡ Smart Time-Window Polling & Resource Management</h6>
+          <p class="text-muted small mb-3">
+            Configure dynamic background polling windows to concentrate sync checks during peak ride hours while conserving CPU, disk write cycles, and cloud API limits overnight.
+          </p>
+
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="smart_scheduling_enabled" name="smart_scheduling_enabled" {{ "checked" if settings.smart_scheduling_enabled else "" }}>
+            <label class="form-check-label fw-semibold" for="smart_scheduling_enabled">Enable Smart Time-Window Scheduling (Recommended)</label>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label text-sm fw-semibold mb-1">Overnight Quiet Window</label>
+              <div class="input-group input-group-sm mb-1">
+                <span class="input-group-text">Hours</span>
+                <input class="form-control" type="number" min="0" max="23" id="quiet_window_start" name="quiet_window_start" value="{{ settings.quiet_window_start }}">
+                <span class="input-group-text">to</span>
+                <input class="form-control" type="number" min="0" max="23" id="quiet_window_end" name="quiet_window_end" value="{{ settings.quiet_window_end }}">
+              </div>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">Poll Interval</span>
+                <input class="form-control" type="number" min="15" id="quiet_window_poll_mins" name="quiet_window_poll_mins" value="{{ settings.quiet_window_poll_mins }}">
+                <span class="input-group-text">mins</span>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label text-sm fw-semibold mb-1">Evening Peak Ride Window</label>
+              <div class="input-group input-group-sm mb-1">
+                <span class="input-group-text">Hours</span>
+                <input class="form-control" type="number" min="0" max="23" id="peak_window_start" name="peak_window_start" value="{{ settings.peak_window_start }}">
+                <span class="input-group-text">to</span>
+                <input class="form-control" type="number" min="0" max="23" id="peak_window_end" name="peak_window_end" value="{{ settings.peak_window_end }}">
+              </div>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">Poll Interval</span>
+                <input class="form-control" type="number" min="5" id="peak_window_poll_mins" name="peak_window_poll_mins" value="{{ settings.peak_window_poll_mins }}">
+                <span class="input-group-text">mins</span>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label text-sm fw-semibold mb-1">Daylight Off-Peak Window</label>
+              <div class="input-group input-group-sm mt-md-4">
+                <span class="input-group-text">Poll Interval</span>
+                <input class="form-control" type="number" min="15" id="daylight_window_poll_mins" name="daylight_window_poll_mins" value="{{ settings.daylight_window_poll_mins }}">
+                <span class="input-group-text">mins</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert alert-info py-2 px-3 mb-0 small">
+            <strong>💡 Hardware & Resource Efficiency Notice:</strong> Polling remote sources every 15 minutes continuously 24/7 uses unnecessary CPU cycles, storage I/O, and external API quotas. Smart scheduling automatically concentrates frequent polling during evening peak ride hours (17:00–22:00) while keeping background activity minimal overnight (00:00–06:00).
+          </div>
+        </div>
+      </div>
+
       <div class="col-12">
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" id="dry_run" name="dry_run" {{ "checked" if settings.dry_run else "" }}>
