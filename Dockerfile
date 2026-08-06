@@ -21,6 +21,8 @@ COPY --from=rclone /usr/local/bin/rclone /usr/local/bin/rclone
 RUN pip install --no-cache-dir . \
     && chmod +x /app/scripts/*.sh
 
+ENV PYTHONPATH=/app
+
 USER bridge
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
