@@ -202,8 +202,66 @@
 </div>
 
 <script>
-document.getElementById('runBenchmarkBtn').addEventListener('click', function() {
-  window.location.reload();
+document.getElementById('runBenchmarkBtn').addEventListener('click', async function() {
+  const btn = this;
+  const spinner = document.getElementById('benchmarkSpinner');
+  const btnText = document.getElementById('benchmarkBtnText');
+  const errorAlert = document.getElementById('benchmarkErrorAlert');
+
+  btn.disabled = true;
+  spinner.classList.remove('d-none');
+  btnText.textContent = 'Running Benchmark...';
+  if (errorAlert) errorAlert.classList.add('d-none');
+
+  try {
+    const response = await fetch('/api/benchmark', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': '{{ csrf_token }}'
+      }
+    });
+
+    if (!response.ok) {
+      window.location.reload();
+      return;
+    }
+
+    const data = await response.json();
+    if (document.getElementById('benchmarkTimestamp')) {
+      document.getElementById('benchmarkTimestamp').textContent = data.timestamp || '';
+    }
+
+    if (data.db_writes && !data.db_writes.error) {
+      document.getElementById('dbWriteOps').textContent = `${data.db_writes.ops_per_sec} ops/sec`;
+      document.getElementById('dbWriteLatency').textContent = `Total: ${data.db_writes.total_ms} ms | Avg: ${data.db_writes.avg_latency_ms} ms/op`;
+    }
+
+    if (data.disk_io && !data.disk_io.error) {
+      document.getElementById('diskSpeed').textContent = `W: ${data.disk_io.write_mbps} MB/s | R: ${data.disk_io.read_mbps} MB/s`;
+    }
+
+    if (data.fit_parsing) {
+      if (data.fit_parsing.parsing_duration_ms !== undefined) {
+        document.getElementById('fitParseTime').textContent = `${data.fit_parsing.parsing_duration_ms} ms`;
+        document.getElementById('fitParseDetails').textContent = `File: ${data.fit_parsing.filename} | SVG: ${data.fit_parsing.svg_bytes} bytes`;
+      } else {
+        document.getElementById('fitParseTime').textContent = `N/A`;
+        document.getElementById('fitParseDetails').textContent = data.fit_parsing.message || 'No sample .fit file';
+      }
+    }
+
+    if (document.getElementById('rawBenchmarkJson')) {
+      document.getElementById('rawBenchmarkJson').textContent = JSON.stringify(data, null, 2);
+    }
+  } catch (err) {
+    window.location.reload();
+  } finally {
+    btn.disabled = false;
+    spinner.classList.add('d-none');
+    btnText.textContent = '⚡ Re-run Benchmark';
+  }
 });
 </script>
 {% endblock %}
