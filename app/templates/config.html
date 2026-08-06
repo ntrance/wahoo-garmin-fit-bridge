@@ -241,7 +241,14 @@
               </div>
             </div>
             <dl class="row small mb-0">
-              <dt class="col-sm-3">Polling interval</dt><dd class="col-sm-9">{{ source.poll_seconds }} seconds</dd>
+              <dt class="col-sm-3">Base polling setting</dt><dd class="col-sm-9">{{ source.poll_seconds }} seconds</dd>
+              {% if source.smart_scheduling_enabled and source.smart_poll_seconds != source.poll_seconds %}
+              <dt class="col-sm-3">Active Smart Window poll</dt>
+              <dd class="col-sm-9">
+                <span class="badge text-bg-primary">{{ (source.smart_poll_seconds / 60) | round(1) }} minutes</span>
+                <small class="text-muted ms-1">(Smart Schedule active for current time window)</small>
+              </dd>
+              {% endif %}
               <dt class="col-sm-3">Last attempt</dt><dd class="col-sm-9">{{ source.last_poll_at or "Not yet" }}</dd>
               <dt class="col-sm-3">Last success</dt><dd class="col-sm-9">{{ source.last_success_at or "Not yet" }}</dd>
               <dt class="col-sm-3">Next poll</dt><dd class="col-sm-9">{{ source.next_poll_at or "After startup" }}</dd>

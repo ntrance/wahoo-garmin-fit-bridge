@@ -42,8 +42,10 @@ class SourceManager:
             raise KeyError(f"Unknown activity source: {source_type}") from exc
 
     def statuses(self) -> list[dict[str, Any]]:
+        from app.source_scheduler import _get_smart_poll_seconds
         statuses: list[dict[str, Any]] = []
         for source in self.sources.values():
+            smart_poll = _get_smart_poll_seconds(source.poll_seconds, self.settings)
             statuses.append(
                 {
                     "source_type": source.source_type,
@@ -52,6 +54,8 @@ class SourceManager:
                     "configured": source.is_configured(),
                     "supports_remote_delete": source.supports_remote_delete(),
                     "poll_seconds": source.poll_seconds,
+                    "smart_poll_seconds": smart_poll,
+                    "smart_scheduling_enabled": getattr(self.settings, "smart_scheduling_enabled", True),
                     **self.db.get_source_state(source.source_type),
                 }
             )
