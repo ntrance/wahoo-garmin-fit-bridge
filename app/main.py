@@ -439,6 +439,7 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 "source_statuses": request.app.state.source_manager.statuses(),
                 "igpsport_profile": igpsport_profile,
                 "igpsport_regions": IGPSPORT_REGIONS,
+                "status": get_system_status(runtime_settings, app.state.db),
             },
         )
 
@@ -562,6 +563,8 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             "PEAK_WINDOW_END": _form_text(form.get("peak_window_end"), str(runtime_settings.peak_window_end)),
             "PEAK_WINDOW_POLL_MINS": _form_text(form.get("peak_window_poll_mins"), str(runtime_settings.peak_window_poll_mins)),
             "DAYLIGHT_WINDOW_POLL_MINS": _form_text(form.get("daylight_window_poll_mins"), str(runtime_settings.daylight_window_poll_mins)),
+            "TZ": _form_text(form.get("timezone"), runtime_settings.timezone),
+            "TIMEZONE": _form_text(form.get("timezone"), runtime_settings.timezone),
         }
         save_runtime_config(runtime_settings, updates)
         updated_settings = replace(
@@ -578,6 +581,7 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 int(updates["IGPSPORT_POLL_SECONDS"]),
                 runtime_settings.igpsport_min_poll_seconds,
             ),
+            timezone=updates["TZ"],
             smart_scheduling_enabled=updates["SMART_SCHEDULING_ENABLED"] == "true",
             quiet_window_start=int(updates["QUIET_WINDOW_START"]),
             quiet_window_end=int(updates["QUIET_WINDOW_END"]),

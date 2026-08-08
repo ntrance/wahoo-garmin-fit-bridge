@@ -32,9 +32,17 @@
           <span class="text-muted">Architecture:</span>
           <code>{{ status.architecture }}</code>
         </div>
-        <div class="d-flex justify-content-between text-sm">
+        <div class="d-flex justify-content-between text-sm mb-1">
           <span class="text-muted">Python Version:</span>
           <code>v{{ status.python_version }}</code>
+        </div>
+        <div class="d-flex justify-content-between text-sm mb-1">
+          <span class="text-muted">Timezone (TZ):</span>
+          <span class="badge bg-secondary">{{ status.system_timezone }}</span>
+        </div>
+        <div class="d-flex justify-content-between text-sm">
+          <span class="text-muted">Local Time:</span>
+          <small class="fw-bold text-primary">{{ status.local_time_formatted }}</small>
         </div>
       </div>
     </div>

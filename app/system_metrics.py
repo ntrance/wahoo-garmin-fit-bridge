@@ -11,6 +11,7 @@ from typing import Any
 
 from app.db import Database
 from app.fit_preview import build_activity_preview
+from app.hardware import get_formatted_local_time
 from app.settings import Settings
 
 
@@ -35,6 +36,8 @@ class SystemStatus:
     sqlite_temp_store: str
     sqlite_busy_timeout: int
     hardware_tier: str
+    system_timezone: str
+    local_time_formatted: str
 
 
 def get_system_status(settings: Settings, db: Database) -> SystemStatus:
@@ -97,6 +100,8 @@ def get_system_status(settings: Settings, db: Database) -> SystemStatus:
         sqlite_temp_store=temp_store,
         sqlite_busy_timeout=busy_timeout,
         hardware_tier=tier,
+        system_timezone=settings.timezone,
+        local_time_formatted=get_formatted_local_time(settings.timezone),
     )
 
 

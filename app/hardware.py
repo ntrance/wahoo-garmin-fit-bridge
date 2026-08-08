@@ -44,3 +44,59 @@ def get_hardware_profile() -> HardwareProfile:
     else:
         # High spec: Raspberry Pi 5 / Server / PC (> 4GB RAM)
         return HardwareProfile(tier="high", max_workers=min(8, max(4, cores)), recommended_scan_interval=15)
+
+
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+
+def detect_system_timezone() -> str:
+    env_tz = (os.getenv("TZ") or os.getenv("TIMEZONE") or "").strip()
+    if env_tz:
+        try:
+            ZoneInfo(env_tz)
+            return env_tz
+        except Exception:
+            pass
+
+    if os.path.exists("/etc/timezone"):
+        try:
+            with open("/etc/timezone") as f:
+                tz = f.read().strip()
+                if tz:
+                    ZoneInfo(tz)
+                    return tz
+        except Exception:
+            pass
+
+    if os.path.islink("/etc/localtime"):
+        try:
+            target = os.readlink("/etc/localtime")
+            if "zoneinfo/" in target:
+                tz = target.split("zoneinfo/")[-1].strip()
+                if tz:
+                    ZoneInfo(tz)
+                    return tz
+        except Exception:
+            pass
+
+    try:
+        local_tz = datetime.now().astimezone().tzinfo
+        if local_tz:
+            name = str(local_tz)
+            ZoneInfo(name)
+            return name
+    except Exception:
+        pass
+
+    return "UTC"
+
+
+def get_formatted_local_time(tz_name: str) -> str:
+    try:
+        tz = ZoneInfo(tz_name.strip())
+        now = datetime.now(tz)
+        return now.strftime("%Y-%m-%d %H:%M:%S %Z")
+    except Exception:
+        now = datetime.now()
+        return now.strftime("%Y-%m-%d %H:%M:%S UTC")

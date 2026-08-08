@@ -72,10 +72,13 @@ class SourceScheduler:
 def _get_smart_poll_seconds(configured_poll: int, settings: Any = None) -> int:
     if settings and not getattr(settings, "smart_scheduling_enabled", True):
         return configured_poll
-    if configured_poll < 60:
-        return configured_poll
+    from zoneinfo import ZoneInfo
+    tz_str = getattr(settings, "timezone", "") if settings else ""
+    try:
+        current_hour = datetime.now(ZoneInfo(tz_str)).hour if tz_str else datetime.now().hour
+    except Exception:
+        current_hour = datetime.now().hour
 
-    current_hour = datetime.now().hour
     q_start = getattr(settings, "quiet_window_start", 0) if settings else 0
     q_end = getattr(settings, "quiet_window_end", 6) if settings else 6
     q_poll_sec = (getattr(settings, "quiet_window_poll_mins", 360) if settings else 360) * 60

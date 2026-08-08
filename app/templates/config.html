@@ -148,6 +148,22 @@
             <label class="form-check-label fw-semibold" for="smart_scheduling_enabled">Enable Smart Time-Window Scheduling (Recommended)</label>
           </div>
 
+          <div class="row g-3 mb-3 border-bottom pb-3">
+            <div class="col-md-6">
+              <label class="form-label text-sm fw-semibold mb-1" for="timezone">System & Schedule Timezone (TZ)</label>
+              <input class="form-control form-control-sm" id="timezone" name="timezone" value="{{ settings.timezone }}" placeholder="e.g. Europe/London, America/New_York, UTC">
+              <small class="form-text text-muted d-block mt-1">
+                Configured host timezone: <span class="badge bg-secondary">{{ settings.timezone }}</span>
+              </small>
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+              <div class="p-2 border rounded bg-white w-100 text-sm">
+                <span class="text-muted d-block mb-1">Current System Local Time:</span>
+                <strong class="text-primary">{{ status.local_time_formatted if status else "" }}</strong>
+              </div>
+            </div>
+          </div>
+
           <div class="row g-3 mb-3">
             <div class="col-md-4">
               <label class="form-label text-sm fw-semibold mb-1">Overnight Quiet Window</label>

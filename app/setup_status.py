@@ -181,6 +181,8 @@ def save_runtime_config(settings: Settings, updates: dict[str, str]) -> None:
         "PEAK_WINDOW_END",
         "PEAK_WINDOW_POLL_MINS",
         "DAYLIGHT_WINDOW_POLL_MINS",
+        "TZ",
+        "TIMEZONE",
     ]
     lines = [f"{key}={_quote_env(existing.get(key, ''))}" for key in allowed_keys]
     write_private_text(settings.runtime_config_path, "\n".join(lines) + "\n")
