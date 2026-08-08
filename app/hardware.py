@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
 import os
-import platform
 from typing import NamedTuple
+from zoneinfo import ZoneInfo
 
 
 class HardwareProfile(NamedTuple):
@@ -45,9 +46,6 @@ def get_hardware_profile() -> HardwareProfile:
         # High spec: Raspberry Pi 5 / Server / PC (> 4GB RAM)
         return HardwareProfile(tier="high", max_workers=min(8, max(4, cores)), recommended_scan_interval=15)
 
-
-from datetime import datetime
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 TIMEZONE_ALIASES: dict[str, str] = {
     "london": "Europe/London",

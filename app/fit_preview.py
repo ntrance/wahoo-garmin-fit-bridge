@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from functools import lru_cache
-from html import escape
 import json
 import math
 from pathlib import Path
@@ -165,7 +164,6 @@ def _route_svg(points: list[tuple[float, float]]) -> str:
     min_lat = min(lat for lat, _ in points)
     max_lat = max(lat for lat, _ in points)
     min_lon = min(lon for _, lon in points)
-    max_lon = max(lon for _, lon in points)
 
     mean_lat = math.radians((min_lat + max_lat) / 2.0)
     cos_lat = max(math.cos(mean_lat), 0.2)

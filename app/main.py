@@ -46,16 +46,14 @@ from app.setup_status import (
     test_dropbox,
     test_garmin_upload,
 )
-from app.setup_status import save_dropbox_auth, save_garmin_profile
 from app.settings import IGPSPORT_REGIONS, Settings
-from app.hardware import normalize_timezone_name
+from app.setup_status import save_dropbox_auth, save_garmin_profile
+from concurrent.futures import ThreadPoolExecutor
+
+from app.hardware import get_hardware_profile, normalize_timezone_name
 from app.system_metrics import get_system_status, run_system_benchmark
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
-
-
-from concurrent.futures import ThreadPoolExecutor
-from app.hardware import get_hardware_profile
 
 
 def create_app(settings: Settings | None = None, start_background: bool = True) -> FastAPI:
