@@ -48,6 +48,7 @@ from app.setup_status import (
 )
 from app.setup_status import save_dropbox_auth, save_garmin_profile
 from app.settings import IGPSPORT_REGIONS, Settings
+from app.hardware import normalize_timezone_name
 from app.system_metrics import get_system_status, run_system_benchmark
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -563,8 +564,8 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             "PEAK_WINDOW_END": _form_text(form.get("peak_window_end"), str(runtime_settings.peak_window_end)),
             "PEAK_WINDOW_POLL_MINS": _form_text(form.get("peak_window_poll_mins"), str(runtime_settings.peak_window_poll_mins)),
             "DAYLIGHT_WINDOW_POLL_MINS": _form_text(form.get("daylight_window_poll_mins"), str(runtime_settings.daylight_window_poll_mins)),
-            "TZ": _form_text(form.get("timezone"), runtime_settings.timezone),
-            "TIMEZONE": _form_text(form.get("timezone"), runtime_settings.timezone),
+            "TZ": normalize_timezone_name(_form_text(form.get("timezone"), runtime_settings.timezone)),
+            "TIMEZONE": normalize_timezone_name(_form_text(form.get("timezone"), runtime_settings.timezone)),
         }
         save_runtime_config(runtime_settings, updates)
         updated_settings = replace(

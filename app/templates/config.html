@@ -151,15 +151,25 @@
           <div class="row g-3 mb-3 border-bottom pb-3">
             <div class="col-md-6">
               <label class="form-label text-sm fw-semibold mb-1" for="timezone">System & Schedule Timezone (TZ)</label>
-              <input class="form-control form-control-sm" id="timezone" name="timezone" value="{{ settings.timezone }}" placeholder="e.g. Europe/London, America/New_York, UTC">
+              <input class="form-control form-control-sm" id="timezone" name="timezone" value="{{ settings.timezone }}" list="timezone_options" placeholder="e.g. Europe/London">
+              <datalist id="timezone_options">
+                <option value="Europe/London">Europe/London (UK - GMT/BST)</option>
+                <option value="Europe/Paris">Europe/Paris (Central Europe)</option>
+                <option value="America/New_York">America/New_York (US Eastern)</option>
+                <option value="America/Chicago">America/Chicago (US Central)</option>
+                <option value="America/Denver">America/Denver (US Mountain)</option>
+                <option value="America/Los_Angeles">America/Los_Angeles (US Pacific)</option>
+                <option value="Australia/Sydney">Australia/Sydney (AEST/AEDT)</option>
+                <option value="UTC">UTC (Coordinated Universal Time)</option>
+              </datalist>
               <small class="form-text text-muted d-block mt-1">
-                Configured host timezone: <span class="badge bg-secondary">{{ settings.timezone }}</span>
+                Active timezone: <span class="badge bg-secondary">{{ settings.timezone }}</span>
               </small>
             </div>
             <div class="col-md-6 d-flex align-items-end">
               <div class="p-2 border rounded bg-white w-100 text-sm">
                 <span class="text-muted d-block mb-1">Current System Local Time:</span>
-                <strong class="text-primary">{{ status.local_time_formatted if status else "" }}</strong>
+                <strong class="text-primary fs-6">{{ status.local_time_formatted if status else "" }}</strong>
               </div>
             </div>
           </div>

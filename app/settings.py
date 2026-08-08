@@ -6,7 +6,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from app.hardware import detect_system_timezone
+from app.hardware import detect_system_timezone, normalize_timezone_name
 
 IGPSPORT_REGIONS = (
     ("international", "International", "https://prod.en.igpsport.com/service"),
@@ -163,7 +163,7 @@ class Settings:
             garmin_device_name=os.getenv("GARMIN_DEVICE_NAME", "Garmin Device"),
             garmin_unit_id=os.getenv("GARMIN_UNIT_ID", ""),
             previews_dir=Path(os.getenv("PREVIEWS_DIR", "/data/previews")),
-            timezone=(os.getenv("TZ") or os.getenv("TIMEZONE") or "").strip() or detect_system_timezone(),
+            timezone=normalize_timezone_name((os.getenv("TZ") or os.getenv("TIMEZONE") or "").strip() or detect_system_timezone()),
             smart_scheduling_enabled=_bool_env("SMART_SCHEDULING_ENABLED", True),
             quiet_window_start=_int_env("QUIET_WINDOW_START", 0),
             quiet_window_end=_int_env("QUIET_WINDOW_END", 6),
