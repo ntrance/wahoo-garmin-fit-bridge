@@ -558,23 +558,25 @@
         <h3 class="h6 mb-2">Garmin Account and Upload Profile</h3>
         <div class="row g-2">
           <div class="col-12">
-            <label class="form-label" for="detected_device_id">Garmin device target</label>
+            <label class="form-label fw-bold" for="detected_device_id">Emulated Garmin Head Unit / Device Target</label>
             <select class="form-select" id="detected_device_id" name="detected_device_id">
-              <option value="">Use manual values below</option>
+              <optgroup label="⭐ Recommended Cycling Head Unit Presets (Enables Watch Physio TrueUp Sync)">
+              {% for device in garmin_presets %}
+              <option value="{{ device.id }}" {{ "selected" if device.id == setup.garmin.detected_device_id or (not setup.garmin.detected_device_id and loop.first) else "" }}>{{ device.label }}</option>
+              {% endfor %}
+              </optgroup>
               {% if detected_devices %}
-              <optgroup label="From your genuine Garmin FIT file">
+              <optgroup label="From your scanned genuine Garmin FIT files">
               {% for device in detected_devices %}
               <option value="{{ device.id }}" {{ "selected" if device.id == setup.garmin.detected_device_id else "" }}>{{ device.label }}</option>
               {% endfor %}
               </optgroup>
               {% endif %}
-              <optgroup label="Fallback presets">
-              {% for device in garmin_presets %}
-              <option value="{{ device.id }}" {{ "selected" if device.id == setup.garmin.detected_device_id else "" }}>{{ device.label }}</option>
-              {% endfor %}
-              </optgroup>
+              <option value="">Use manual values below</option>
             </select>
-            <div class="form-text">Use a genuine Garmin FIT device profile where possible, or enter the device values manually.</div>
+            <div class="alert alert-info py-2 px-3 mt-2 mb-1 text-sm">
+              💡 <strong>Physio TrueUp Watch Sync Notice:</strong> Selecting a Garmin Edge Head Unit preset (e.g. <strong>Garmin Edge 1040</strong>) generates a distinct emulated bike computer serial number. This ensures Garmin Connect treats your Wahoo/iGPSPORT rides as recorded on a separate head unit and automatically syncs them down to your <strong>Fenix / Forerunner watch</strong> via Physio TrueUp!
+            </div>
           </div>
           <div class="col-md-6">
             <label class="form-label" for="garmin_username">Garmin email</label>

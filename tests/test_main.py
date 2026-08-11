@@ -164,7 +164,7 @@ def test_config_page_shows_auth_paths(settings):
     assert "Garmin Upload still needs to be configured." in response.text
     assert "Web Security" in response.text
     assert "Garmin profile" in response.text
-    assert "Garmin device target" in response.text
+    assert "Emulated Garmin Head Unit" in response.text
     assert "Use manual values below" in response.text
     assert "Identify Garmin Device" in response.text
     assert "Garmin Account and Upload Profile" in response.text

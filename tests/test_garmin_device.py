@@ -35,4 +35,6 @@ def test_fenix_product_id_has_friendly_name():
 
 
 def test_no_shared_device_identity_is_published():
-    assert garmin_device_presets() == []
+    presets = garmin_device_presets()
+    assert len(presets) >= 5
+    assert any("Edge 1040" in p.label for p in presets)

@@ -13,6 +13,10 @@ from app.private_files import write_private_text
 GARMIN_PRODUCT_NAMES = {
     3121: "Garmin Edge 530",
     3291: "Garmin Fenix 6X Pro",
+    3558: "Garmin Edge 1030 Plus",
+    3991: "Garmin Edge 1040",
+    4063: "Garmin Edge 840",
+    4064: "Garmin Edge 540",
 }
 @dataclass(frozen=True)
 class GarminDevice:
@@ -127,7 +131,63 @@ def find_detected_device(settings: Settings, device_id: str) -> GarminDevice | N
 
 
 def garmin_device_presets() -> list[GarminDevice]:
-    return []
+    return [
+        GarminDevice(
+            id="1:3991:3991000001",
+            label="Garmin Edge 1040 (Recommended for Physio TrueUp Watch Sync)",
+            manufacturer_id=1,
+            product_id=3991,
+            unit_id=3991000001,
+            software_version=2118,
+            software_version_label="21.18",
+            garmin_product="edge_1040",
+            source_file="",
+        ),
+        GarminDevice(
+            id="1:4063:4063000001",
+            label="Garmin Edge 840",
+            manufacturer_id=1,
+            product_id=4063,
+            unit_id=4063000001,
+            software_version=2118,
+            software_version_label="21.18",
+            garmin_product="edge_840",
+            source_file="",
+        ),
+        GarminDevice(
+            id="1:4064:4064000001",
+            label="Garmin Edge 540",
+            manufacturer_id=1,
+            product_id=4064,
+            unit_id=4064000001,
+            software_version=2118,
+            software_version_label="21.18",
+            garmin_product="edge_540",
+            source_file="",
+        ),
+        GarminDevice(
+            id="1:3558:3558000001",
+            label="Garmin Edge 1030 Plus",
+            manufacturer_id=1,
+            product_id=3558,
+            unit_id=3558000001,
+            software_version=675,
+            software_version_label="6.75",
+            garmin_product="edge_1030_plus",
+            source_file="",
+        ),
+        GarminDevice(
+            id="1:3121:3121000001",
+            label="Garmin Edge 530",
+            manufacturer_id=1,
+            product_id=3121,
+            unit_id=3121000001,
+            software_version=975,
+            software_version_label="9.75",
+            garmin_product="edge_530",
+            source_file="",
+        ),
+    ]
 
 
 def find_garmin_target(settings: Settings, target_id: str) -> GarminDevice | None:
