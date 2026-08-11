@@ -134,7 +134,7 @@ def garmin_device_presets() -> list[GarminDevice]:
     return [
         GarminDevice(
             id="1:3991:3991000001",
-            label="Garmin Edge 1040 (Recommended for Physio TrueUp Watch Sync)",
+            label="⭐ Garmin Edge 1040 (PREFERRED - Enables Watch Physio TrueUp Sync)",
             manufacturer_id=1,
             product_id=3991,
             unit_id=3991000001,
