@@ -25,28 +25,18 @@ jobs:
       - run: pip-audit
       - run: docker build -t wahoo-garmin-fit-bridge:ci .
       - name: Scan container for high and critical vulnerabilities
-        run: >-
-          docker run --rm
-          -v /var/run/docker.sock:/var/run/docker.sock
-          -v ${{ github.workspace }}/.trivyignore.yaml:/.trivyignore.yaml:ro
-          aquasec/trivy@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e
-          image
-          --scanners vuln
-          --severity HIGH,CRITICAL
-          --ignore-unfixed
-          --ignorefile /.trivyignore.yaml
-          --exit-code 1
-          --no-progress
-          --skip-version-check
-          wahoo-garmin-fit-bridge:ci
+        uses: aquasec/trivy-action@v0.29.0
+        with:
+          image-ref: "wahoo-garmin-fit-bridge:ci"
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: "HIGH,CRITICAL"
+          trivyignores: ".trivyignore.yaml"
       - name: Scan deployment configuration
-        run: >-
-          docker run --rm
-          -v ${{ github.workspace }}:/work:ro
-          aquasec/trivy@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e
-          config
-          --severity HIGH,CRITICAL
-          --ignorefile /work/.trivyignore.yaml
-          --exit-code 1
-          --skip-version-check
-          /work
+        uses: aquasec/trivy-action@v0.29.0
+        with:
+          scan-type: "config"
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
+          trivyignores: ".trivyignore.yaml"
