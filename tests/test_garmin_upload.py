@@ -100,3 +100,60 @@ def test_native_converter_preserves_records_and_applies_device_identity(tmp_path
     assert "Garmin Device" in note
     assert source.read_bytes() != original
     assert record_count == 3
+
+
+def test_zwift_virtual_activity_rewrite_applies_edge1040_identity_and_preserves_virtual_sub_sport(tmp_path):
+    source = tmp_path / "zwift_ride.fit"
+    started_at = datetime(2026, 8, 11, 20, 0, 0, tzinfo=UTC)
+    encoder = Encoder()
+    encoder.on_mesg(
+        0,
+        {
+            "type": "activity",
+            "manufacturer": 206,  # Zwift
+            "product": 1,
+            "serial_number": 99999,
+            "time_created": started_at,
+        },
+    )
+    encoder.on_mesg(
+        18,
+        {
+            "start_time": started_at,
+            "timestamp": started_at + timedelta(minutes=30),
+            "total_elapsed_time": 1800.0,
+            "sport": "cycling",
+            "sub_sport": "virtual_activity",
+        },
+    )
+    for index in range(5):
+        encoder.on_mesg(
+            20,
+            {
+                "timestamp": started_at + timedelta(seconds=index * 10),
+                "distance": float(index * 50),
+                "speed": 8.0,
+                "power": 250,
+            },
+        )
+    source.write_bytes(encoder.close())
+    profile = GarminProfile("edge1040", "rider@example.com", "secret", 1, 3991, 3991000001, 2118)
+
+    success, note, record_count = _rewrite_wahoo_fit(source, profile, "Garmin Edge 1040")
+
+    assert success
+    assert "Garmin Edge 1040" in note
+    assert record_count == 5
+
+    stream = Stream.from_file(str(source))
+    decoder = Decoder(stream)
+    messages, _ = decoder.read()
+
+    file_id = messages["file_id_mesgs"][0]
+    session = messages["session_mesgs"][0]
+
+    assert file_id["manufacturer"] in {"garmin", 1}
+    assert file_id["product"] == 3991
+    assert file_id["serial_number"] == 3991000001
+    assert session["sub_sport"] == "virtual_activity"
+

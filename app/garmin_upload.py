@@ -221,6 +221,12 @@ def _rewrite_wahoo_fit(
             if message_number == 0:
                 insert_after = index
 
+        is_virtual = any(
+            (message_number == 0 and message.get("manufacturer") in {206, 294, 300})
+            or (message_number in {18, 12} and message.get("sub_sport") in {27, "virtual_activity"})
+            for message_number, message in ordered_messages
+        )
+
         encoder = Encoder()
         changed = 0
         written = 0
@@ -232,6 +238,9 @@ def _rewrite_wahoo_fit(
             clean_message = {
                 key: value for key, value in message.items() if key != "developer_fields"
             }
+            if is_virtual and message_number in {18, 12}:
+                clean_message["sub_sport"] = "virtual_activity"
+                changed += 1
             if message_number == 0:
                 clean_message["type"] = clean_message.get("type") or "activity"
                 clean_message["manufacturer"] = manufacturer
