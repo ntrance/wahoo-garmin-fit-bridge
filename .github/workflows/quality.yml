@@ -25,7 +25,7 @@ jobs:
       - run: pip-audit
       - run: docker build -t wahoo-garmin-fit-bridge:ci .
       - name: Scan container for high and critical vulnerabilities
-        uses: aquasec/trivy-action@v0.29.0
+        uses: aquasecurity/trivy-action@v0.29.0
         with:
           image-ref: "wahoo-garmin-fit-bridge:ci"
           format: "table"
@@ -34,7 +34,7 @@ jobs:
           severity: "HIGH,CRITICAL"
           trivyignores: ".trivyignore.yaml"
       - name: Scan deployment configuration
-        uses: aquasec/trivy-action@v0.29.0
+        uses: aquasecurity/trivy-action@v0.29.0
         with:
           scan-type: "config"
           exit-code: "1"
