@@ -517,50 +517,45 @@
             <div class="text-secondary small">Login token</div>
             <div>{{ "Saved" if setup.garmin.token_saved else "Not saved" }}</div>
           </div>
-          <div class="col-md-6">
-            <div class="text-secondary small">Upload profile</div>
-            <div>{{ setup.garmin.profile }}</div>
-          </div>
         </div>
       </div>
       {% elif setup.garmin.profile_error %}
       <div class="alert alert-warning py-2">{{ setup.garmin.profile_error }}</div>
       {% else %}
       <div class="alert alert-info py-2">
-        Scan or upload one genuine Garmin FIT file, then save the Garmin account and profile below.
+        Enter your Garmin email and password below. Defaulting to <strong>Garmin Edge 1040</strong> ensures full watch Physio TrueUp sync out of the box!
       </div>
       {% endif %}
 
-      <div class="border rounded p-3 mb-3">
-        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-          <div>
-            <h3 class="h6 mb-1">Identify Garmin Device</h3>
-            <div class="text-secondary small">Use a real Garmin FIT file so uploads look like the selected watch.</div>
-          </div>
-          <span class="badge {{ 'text-bg-success' if detected_devices else 'text-bg-secondary' }}">
-            {{ detected_devices|length }} found
-          </span>
-        </div>
-        <form method="post" action="/config/garmin/upload-real-fit" enctype="multipart/form-data" class="mb-2">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <label class="form-label" for="real_fit_file">From a real Garmin FIT File</label>
-          <input class="form-control form-control-sm" id="real_fit_file" name="real_fit_file" type="file" accept=".fit">
-          <button class="btn btn-outline-primary btn-sm mt-2" type="submit">Upload and Scan For Garmin Device</button>
-        </form>
-        <form method="post" action="/config/garmin/scan-real-fit">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="btn btn-outline-primary btn-sm" type="submit">Scan real_fit Folder</button>
-        </form>
-      </div>
+      <form method="post" action="/config/garmin/upload-real-fit" enctype="multipart/form-data" id="upload_real_fit_form" class="d-none">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      </form>
 
       <form method="post" action="/config/garmin/save" class="mb-3">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <h3 class="h6 mb-2">Garmin Account and Upload Profile</h3>
-        <div class="row g-2">
+        <input type="hidden" name="garmin_profile_name" value="{{ setup.garmin.profile or 'wahoo' }}">
+        <h3 class="h6 mb-3">Garmin Account & Target Device Setup</h3>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold" for="garmin_username">Garmin Account Email</label>
+            <input class="form-control" id="garmin_username" name="garmin_username" value="{{ setup.garmin.username }}" autocomplete="username" placeholder="yourname@example.com">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold" for="garmin_password">Garmin Account Password</label>
+            <input
+              class="form-control"
+              id="garmin_password"
+              name="garmin_password"
+              type="password"
+              autocomplete="current-password"
+              placeholder="{{ 'Saved - leave blank to keep current password' if setup.garmin.password_saved else 'Password' }}"
+            >
+          </div>
           <div class="col-12">
-            <label class="form-label fw-bold" for="detected_device_id">Emulated Garmin Head Unit / Device Target</label>
+            <label class="form-label fw-semibold" for="detected_device_id">Emulated Device Target</label>
             <select class="form-select" id="detected_device_id" name="detected_device_id">
-              <optgroup label="⭐ Recommended Cycling Head Unit Presets (Enables Watch Physio TrueUp Sync)">
+              <optgroup label="⭐ Recommended Head Units (Enables Watch Physio TrueUp Sync)">
               {% for device in garmin_presets %}
               <option value="{{ device.id }}" {{ "selected" if device.id == setup.garmin.detected_device_id or (not setup.garmin.detected_device_id and loop.first) else "" }}>{{ device.label }}</option>
               {% endfor %}
@@ -572,51 +567,45 @@
               {% endfor %}
               </optgroup>
               {% endif %}
-              <option value="">Use manual values below</option>
+              <option value="">Custom / Manual values...</option>
             </select>
-            <div class="alert alert-info py-2 px-3 mt-2 mb-1 text-sm">
-              💡 <strong>Physio TrueUp Watch Sync Notice:</strong> Selecting a Garmin Edge Head Unit preset (e.g. <strong>Garmin Edge 1040</strong>) generates a distinct emulated bike computer serial number. This ensures Garmin Connect treats your Wahoo/iGPSPORT rides as recorded on a separate head unit and automatically syncs them down to your <strong>Fenix / Forerunner watch</strong> via Physio TrueUp!
+            <div class="alert alert-info py-2 px-3 mt-2 mb-0 text-sm">
+              💡 <strong>Physio TrueUp Watch Sync:</strong> Defaulting to <strong>Garmin Edge 1040</strong> generates a distinct bike computer serial number. This ensures Garmin Connect treats your Wahoo/iGPSPORT rides as recorded on a separate head unit and automatically syncs them down to your <strong>Fenix / Forerunner watch</strong> via Physio TrueUp!
             </div>
           </div>
-          <div class="col-md-6">
-            <label class="form-label" for="garmin_username">Garmin email</label>
-            <input class="form-control" id="garmin_username" name="garmin_username" value="{{ setup.garmin.username }}" autocomplete="username">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label" for="garmin_password">Garmin password</label>
-            <input
-              class="form-control"
-              id="garmin_password"
-              name="garmin_password"
-              type="password"
-              autocomplete="current-password"
-              placeholder="{{ 'Saved - leave blank to keep current password' if setup.garmin.password_saved else '' }}"
-            >
-          </div>
-          <div class="col-md-5">
-            <label class="form-label" for="garmin_profile_setup">Profile name</label>
-            <input class="form-control" id="garmin_profile_setup" name="garmin_profile_name" value="{{ setup.garmin.profile }}">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label" for="garmin_unit_id_setup">Unit ID</label>
-            <input class="form-control" id="garmin_unit_id_setup" name="garmin_unit_id" value="{{ setup.garmin.unit_id }}" inputmode="numeric">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label" for="garmin_manufacturer_id">Manufacturer ID</label>
-            <input class="form-control" id="garmin_manufacturer_id" name="garmin_manufacturer_id" value="{{ setup.garmin.manufacturer_id }}" inputmode="numeric">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label" for="garmin_product_id">Product ID</label>
-            <input class="form-control" id="garmin_product_id" name="garmin_product_id" value="{{ setup.garmin.product_id }}" placeholder="From a real Fenix FIT file" inputmode="numeric">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label" for="garmin_software_version">Software version</label>
-            <input class="form-control" id="garmin_software_version" name="garmin_software_version" value="{{ setup.garmin.software_version }}" placeholder="Optional" inputmode="numeric">
-          </div>
         </div>
-        <div class="mt-3">
-          <button class="btn btn-primary btn-sm" type="submit">Save Garmin Upload Profile</button>
-        </div>
+
+        <button class="btn btn-primary" type="submit">Save Garmin Setup</button>
+
+        <details class="mt-4 border rounded p-3 bg-light">
+          <summary class="fw-semibold text-secondary cursor-pointer">Advanced Device Customization (Scan Real FIT or Edit Raw IDs)</summary>
+          <div class="mt-3">
+            <p class="text-muted small">If you own a physical Garmin device and want activities to match its exact hardware IDs, upload a genuine <code>.fit</code> file from that device or edit the fields below.</p>
+            <div class="border rounded p-3 mb-3 bg-white">
+              <div class="fw-semibold mb-1">Scan Genuine Garmin FIT File</div>
+              <input class="form-control form-control-sm mb-2" id="real_fit_file" name="real_fit_file" type="file" accept=".fit" form="upload_real_fit_form">
+              <button class="btn btn-outline-primary btn-sm" type="submit" form="upload_real_fit_form">Upload and Scan FIT File</button>
+            </div>
+            <div class="row g-2">
+              <div class="col-md-3">
+                <label class="form-label text-sm" for="garmin_unit_id_setup">Unit ID / Serial Number</label>
+                <input class="form-control form-control-sm" id="garmin_unit_id_setup" name="garmin_unit_id" value="{{ setup.garmin.unit_id }}" inputmode="numeric">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label text-sm" for="garmin_manufacturer_id">Manufacturer ID</label>
+                <input class="form-control form-control-sm" id="garmin_manufacturer_id" name="garmin_manufacturer_id" value="{{ setup.garmin.manufacturer_id }}" inputmode="numeric">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label text-sm" for="garmin_product_id">Product ID</label>
+                <input class="form-control form-control-sm" id="garmin_product_id" name="garmin_product_id" value="{{ setup.garmin.product_id }}" placeholder="From a real Fenix FIT file" inputmode="numeric">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label text-sm" for="garmin_software_version">Software Version</label>
+                <input class="form-control form-control-sm" id="garmin_software_version" name="garmin_software_version" value="{{ setup.garmin.software_version }}" placeholder="Optional" inputmode="numeric">
+              </div>
+            </div>
+          </div>
+        </details>
       </form>
       <div class="border rounded p-3 mb-3">
         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
