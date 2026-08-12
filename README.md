@@ -8,8 +8,8 @@
 
 <p align="center">
   <a href="https://ghcr.io/ntrance/wahoo-garmin-fit-bridge"><img alt="Docker Image" src="https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white"></a>
-  <a href="https://github.com/ntrance/wahoo-garmin-fit-bridge/actions/workflows/quality.yml"><img alt="Quality and security" src="https://github.com/ntrance/wahoo-garmin-fit-bridge/actions/workflows/quality.yml/badge.svg"></a>
   <a href="https://github.com/ntrance/wahoo-garmin-fit-bridge/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/ntrance/wahoo-garmin-fit-bridge"></a>
+  <a href="https://github.com/ntrance/wahoo-garmin-fit-bridge/actions/workflows/quality.yml"><img alt="Quality and security" src="https://github.com/ntrance/wahoo-garmin-fit-bridge/actions/workflows/quality.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/ntrance/wahoo-garmin-fit-bridge"></a>
   <a href="https://ko-fi.com/ntr4nce"><img alt="Ko-fi" src="https://img.shields.io/badge/Ko--fi-FF5E5B?style=flat&logo=ko-fi&logoColor=white"></a>
 </p>
