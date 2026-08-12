@@ -121,6 +121,10 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "same-origin")
         response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        if not request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
         response.headers.setdefault(
             "Content-Security-Policy",
             "default-src 'self'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
