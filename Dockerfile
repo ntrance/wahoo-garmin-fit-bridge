@@ -21,7 +21,7 @@ COPY app ./app
 COPY scripts ./scripts
 COPY --from=rclone /usr/local/bin/rclone /usr/local/bin/rclone
 
-RUN pip install --no-cache-dir . \
+RUN pip install --no-cache-dir -e . \
     && chmod +x /app/scripts/*.sh
 
 ENV PYTHONPATH=/app

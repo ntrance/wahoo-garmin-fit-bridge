@@ -172,6 +172,7 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 else ""
             ),
             "app_version": request.app.state.app_version,
+            "update_status": getattr(request.app.state, "update_status", None),
         }
 
     @app.get("/health")

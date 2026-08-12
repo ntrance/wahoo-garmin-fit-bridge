@@ -47,11 +47,26 @@
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="primaryNavigation">
-          <div class="navbar-nav ms-sm-3">
+          <div class="navbar-nav ms-sm-3 align-items-sm-center gap-2">
             <a class="nav-link" href="/">Dashboard</a>
             <a class="nav-link" href="/config">Config</a>
             <a class="nav-link" href="/system">System Test</a>
             <a class="nav-link" href="/logs">Logs</a>
+            <div class="ms-sm-2 my-1 my-sm-0">
+              {% if update_status and update_status.update_available %}
+              <a href="{{ update_status.release_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-danger rounded-pill px-2 py-0 align-middle fw-semibold" title="Click to view update release on GitHub">
+                ⚡ v{{ update_status.latest_version }} Update Available
+              </a>
+              {% elif update_status and not update_status.error %}
+              <span class="badge rounded-pill text-bg-success px-2 py-1 align-middle" title="Bridge is up to date">
+                v{{ app_version }} • Up to date
+              </span>
+              {% else %}
+              <span class="badge rounded-pill text-bg-secondary px-2 py-1 align-middle">
+                v{{ app_version }}
+              </span>
+              {% endif %}
+            </div>
           </div>
           {% if settings.web_auth_enabled and authenticated %}
           <form method="post" action="/logout" class="ms-sm-auto mt-3 mt-sm-0">
