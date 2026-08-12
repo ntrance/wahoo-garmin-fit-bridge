@@ -463,6 +463,21 @@ class Database:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def list_paginated(self, page: int = 1, page_size: int = 10) -> tuple[list[dict[str, Any]], int]:
+        page = max(1, page)
+        offset = (page - 1) * page_size
+        with self.connect() as conn:
+            total = conn.execute("SELECT COUNT(*) FROM activities").fetchone()[0]
+            rows = conn.execute(
+                """
+                SELECT * FROM activities
+                ORDER BY COALESCE(activity_start_time, first_seen_at) DESC, id DESC
+                LIMIT ? OFFSET ?
+                """,
+                (page_size, offset),
+            ).fetchall()
+        return [dict(row) for row in rows], int(total)
+
     def list_cleanup_candidates(self, limit: int = 100) -> list[dict[str, Any]]:
         with self.connect() as conn:
             rows = conn.execute(

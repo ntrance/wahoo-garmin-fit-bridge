@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import secrets
 import sqlite3
 from contextlib import asynccontextmanager
 from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
@@ -238,10 +241,21 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         return response
 
     @app.get("/", response_class=HTMLResponse)
-    async def index(request: Request, _auth: None = Depends(require_auth)) -> HTMLResponse:
+    async def index(
+        request: Request,
+        page: int = 1,
+        _auth: None = Depends(require_auth),
+    ) -> HTMLResponse:
         runtime_db = request.app.state.db
         stats = runtime_db.stats()
-        activities = runtime_db.list_recent(50)
+        page_size = 10
+        current_page = max(1, page)
+        activities, total_count = runtime_db.list_paginated(page=current_page, page_size=page_size)
+        total_pages = max(1, math.ceil(total_count / page_size)) if total_count > 0 else 1
+        if current_page > total_pages:
+            current_page = total_pages
+            activities, total_count = runtime_db.list_paginated(page=current_page, page_size=page_size)
+        grouped_activities = group_activities_by_month(activities)
         cleanup_activities = runtime_db.list_cleanup_candidates(100)
         dashboard_message = getattr(app.state, "dashboard_message", None)
         app.state.dashboard_message = None
@@ -252,6 +266,11 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             | {
                 "stats": stats,
                 "activities": activities,
+                "grouped_activities": grouped_activities,
+                "current_page": current_page,
+                "total_pages": total_pages,
+                "total_count": total_count,
+                "page_size": page_size,
                 "cleanup_activities": cleanup_activities,
                 "dashboard_message": dashboard_message,
                 "source_statuses": request.app.state.source_manager.statuses(),
@@ -1112,6 +1131,23 @@ def _form_text(value: object, default: str) -> str:
         return default
     text = str(value).strip()
     return text if text else default
+
+
+def group_activities_by_month(activities: list[dict[str, Any]]) -> list[tuple[str, list[dict[str, Any]]]]:
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for activity in activities:
+        dt_str = str(activity.get("activity_start_time") or activity.get("first_seen_at") or "")
+        month_label = "Unknown Date"
+        if dt_str:
+            try:
+                dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+                month_label = dt.strftime("%B %Y")
+            except Exception:
+                month_label = "Unknown Date"
+        if month_label not in groups:
+            groups[month_label] = []
+        groups[month_label].append(activity)
+    return list(groups.items())
 
 
 def _safe_next(value: str) -> str:

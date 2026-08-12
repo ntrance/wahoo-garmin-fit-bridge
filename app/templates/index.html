@@ -110,7 +110,14 @@
       </tr>
     </thead>
     <tbody>
-      {% for activity in activities %}
+      {% for month_label, month_activities in grouped_activities %}
+      <tr class="table-secondary fw-semibold">
+        <td colspan="9" class="py-2">
+          📅 {{ month_label }}
+          <span class="badge text-bg-light border text-dark ms-2">{{ month_activities | length }} ride{{ 's' if month_activities | length != 1 else '' }}</span>
+        </td>
+      </tr>
+      {% for activity in month_activities %}
       <tr>
         <td><a href="/activity/{{ activity.id }}">{{ activity.id }}</a></td>
         <td>{{ activity.filename }}</td>
@@ -138,10 +145,32 @@
           {% endif %}
         </td>
       </tr>
+      {% endfor %}
       {% else %}
       <tr><td colspan="9" class="text-secondary">No FIT files seen yet.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+
+{% if total_pages > 1 %}
+<nav aria-label="Activities pagination" class="d-flex justify-content-between align-items-center mt-3 mb-4">
+  <div class="text-secondary small">
+    Showing page <strong>{{ current_page }}</strong> of <strong>{{ total_pages }}</strong> ({{ total_count }} total ride{{ 's' if total_count != 1 else '' }})
+  </div>
+  <ul class="pagination pagination-sm mb-0">
+    <li class="page-item {{ 'disabled' if current_page <= 1 else '' }}">
+      <a class="page-link" href="/?page={{ current_page - 1 }}" aria-label="Previous">&laquo; Previous</a>
+    </li>
+    {% for p in range(1, total_pages + 1) %}
+    <li class="page-item {{ 'active' if p == current_page else '' }}">
+      <a class="page-link" href="/?page={{ p }}">{{ p }}</a>
+    </li>
+    {% endfor %}
+    <li class="page-item {{ 'disabled' if current_page >= total_pages else '' }}">
+      <a class="page-link" href="/?page={{ current_page + 1 }}" aria-label="Next">Next &raquo;</a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
 {% endblock %}
