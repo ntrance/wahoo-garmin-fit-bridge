@@ -136,6 +136,31 @@
         <div class="form-text">Automatic cloud polling cannot run more often than every {{ settings.igpsport_min_poll_seconds }} seconds.</div>
       </div>
       {% endif %}
+      <div class="col-12 mt-2">
+        <div class="border rounded p-3 bg-body-tertiary">
+          <h6 class="fw-bold mb-2">🚴 Multi-Platform & Virtual Trainer FIT Sync (Zwift, MyWhoosh, Karoo, COROS)</h6>
+          <p class="text-muted small mb-2">
+            The bridge automatically discovers, deduplicates, and rewrites <code>.fit</code> files recorded on third-party hardware or virtual indoor cycling platforms for Garmin Physio TrueUp watch sync.
+          </p>
+          <div class="row g-2 text-sm">
+            <div class="col-md-6">
+              <span class="fw-semibold text-primary">Virtual Trainers (Zwift / MyWhoosh / TrainingPeaks Virtual)</span>
+              <p class="text-muted small mb-0">
+                FIT header is emulated as a Garmin Edge head unit while preserving <code>sub_sport: 27</code> (Virtual Activity), granting full TSS, VO2 Max, and Training Load in Garmin Connect while correctly categorizing the ride as indoor/virtual.
+              </p>
+            </div>
+            <div class="col-md-6">
+              <span class="fw-semibold text-primary">Physical Head Units & Watches (Hammerhead Karoo / COROS / Wahoo)</span>
+              <p class="text-muted small mb-0">
+                FIT header is converted to a Garmin Edge cycling computer to trigger Physio TrueUp sync down to your watch history and recovery metrics.
+              </p>
+            </div>
+          </div>
+          <div class="alert alert-info py-2 mt-2 mb-0 small">
+            💡 <strong>Dropbox Subfolder Sync:</strong> Drop any <code>.fit</code> file into your connected Dropbox folder (<code>Apps/WahooFitness</code> or subfolders e.g. <code>Apps/WahooFitness/Zwift</code>, <code>Apps/WahooFitness/Karoo</code>). The bridge automatically discovers, rewrites, and syncs them.
+          </div>
+        </div>
+      </div>
       <div class="col-12 mt-3">
         <div class="border rounded p-3 bg-light">
           <h6 class="fw-bold mb-2">⚡ Smart Time-Window Polling & Resource Management</h6>
