@@ -52,6 +52,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 from app.hardware import get_hardware_profile, normalize_timezone_name
 from app.system_metrics import get_system_status, run_system_benchmark
+from app.update_checker import check_for_update
+from app.version import get_app_version
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -85,12 +87,18 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             )
             app_instance.state.scheduler = scheduler
             app_instance.state.scan_task = asyncio.create_task(scheduler.run_forever())
+            app_instance.state.update_check_task = asyncio.create_task(
+                _update_check_loop(app_instance)
+            )
         try:
             yield
         finally:
             task = getattr(app_instance.state, "scan_task", None)
             if task is not None:
                 task.cancel()
+            update_task = getattr(app_instance.state, "update_check_task", None)
+            if update_task is not None:
+                update_task.cancel()
             executor.shutdown(wait=False)
 
     app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -99,6 +107,8 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
     app.state.db = db
     app.state.service = service
     app.state.source_manager = source_manager
+    app.state.app_version = get_app_version()
+    app.state.update_status = None
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):  # type: ignore[no-untyped-def]
@@ -158,6 +168,7 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 if session
                 else ""
             ),
+            "app_version": request.app.state.app_version,
         }
 
     @app.get("/health")
@@ -244,6 +255,7 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 "cleanup_activities": cleanup_activities,
                 "dashboard_message": dashboard_message,
                 "source_statuses": request.app.state.source_manager.statuses(),
+                "update_status": getattr(request.app.state, "update_status", None),
             },
         )
 
@@ -990,7 +1002,11 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         return templates.TemplateResponse(
             request,
             "system.html",
-            context(request) | {"status": status_info, "benchmark": benchmark_results},
+            context(request) | {
+                "status": status_info,
+                "benchmark": benchmark_results,
+                "update_status": getattr(request.app.state, "update_status", None),
+            },
         )
 
     @app.api_route("/api/benchmark", methods=["GET", "POST"])
@@ -1109,6 +1125,26 @@ def _safe_next(value: str) -> str:
             return f"{activity_prefix}{activity_id}"
 
     return "/"
+
+
+async def _update_check_loop(app_instance: FastAPI) -> None:
+    """Periodically check for newer stable GitHub releases."""
+    import logging
+
+    from app.update_checker import CACHE_TTL_SECONDS
+
+    logger = logging.getLogger(__name__)
+    await asyncio.sleep(30)
+    while True:
+        try:
+            current = app_instance.state.app_version
+            result = await asyncio.to_thread(check_for_update, current)
+            app_instance.state.update_status = result
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.debug("Update check failed: %s", exc)
+        await asyncio.sleep(CACHE_TTL_SECONDS)
 
 
 app = create_app()

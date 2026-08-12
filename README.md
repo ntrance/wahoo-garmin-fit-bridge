@@ -304,25 +304,105 @@ Trivy image scanning, and Trivy deployment configuration scanning.
 
 [GitHub Releases](https://github.com/ntrance/wahoo-garmin-fit-bridge/releases)
 are the clearest place for users to see stable versions, release notes, and
-upgrade information.
+upgrade information. Pushing a version tag (`v1.2.0`) automatically builds
+container images, publishes them to GHCR, and creates a GitHub Release with
+auto-generated release notes.
 
-Each version tag also publishes a ready-to-run Linux AMD64 image to GitHub
-Container Registry:
+Each version tag publishes a ready-to-run Linux AMD64 image to GitHub
+Container Registry with semver tags:
 
 ```bash
-docker pull ghcr.io/ntrance/wahoo-garmin-fit-bridge:latest
+docker pull ghcr.io/ntrance/wahoo-garmin-fit-bridge:1.2.0   # pinned
+docker pull ghcr.io/ntrance/wahoo-garmin-fit-bridge:1.2     # minor
+docker pull ghcr.io/ntrance/wahoo-garmin-fit-bridge:1       # major
+docker pull ghcr.io/ntrance/wahoo-garmin-fit-bridge:latest   # latest stable
 ```
 
 Use a fixed version tag in production instead of `latest` so upgrades are
-intentional. The source repository remains the canonical installation option;
-the package is a convenience for hosts that prefer prebuilt images.
+intentional.
+
+## Updates
+
+⭐ Star the repository if you find the project useful.
+
+Starring a repository does not automatically notify you when a new version is
+released. To receive release notifications:
+
+1. Open the [GitHub repository](https://github.com/ntrance/wahoo-garmin-fit-bridge).
+2. Select **Watch**.
+3. Select **Custom**.
+4. Enable **Releases**.
+
+The bridge also checks periodically for newer stable releases and displays a
+notification in the dashboard when an update is available.
+
+## Updating
+
+`/data` and `/appdata` contain all persistent state including activity history,
+credentials, sessions, and configuration. These volumes persist through
+container replacement. Always back up both volumes before upgrading.
+
+### GHCR / production install (`docker-compose.ghcr.yml`)
+
+```bash
+docker compose -f docker-compose.ghcr.yml pull
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+### Pinned version upgrade
+
+Change `BRIDGE_VERSION` in `.env` from the current version to the target version:
+
+```dotenv
+BRIDGE_VERSION=1.3.0
+```
+
+Then pull and restart:
+
+```bash
+docker compose -f docker-compose.ghcr.yml pull
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+### Git checkout / source build
+
+```bash
+cd wahoo-garmin-fit-bridge
+git pull --ff-only
+docker compose up -d --build
+```
 
 ## Deployment
 
-Use `docker-compose.yml` on a normal Docker host. For Dokploy, use
-`docker-compose.dokploy.yml`, mount persistent volumes at `/data` and `/appdata`
-before the first production deployment, and provide secrets through Dokploy's
-environment settings.
+### Docker Compose (source build)
+
+Use `docker-compose.yml` on a normal Docker host. This builds the image from
+the checked-out source:
+
+```bash
+docker compose up -d --build
+```
+
+### Docker Compose (GHCR image)
+
+Use `docker-compose.ghcr.yml` for production deployments that use the published
+GHCR image without requiring a local build:
+
+```bash
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+Set `BRIDGE_VERSION` in `.env` to pin a specific release:
+
+```dotenv
+BRIDGE_VERSION=1.2.0
+```
+
+### Dokploy
+
+Use `docker-compose.dokploy.yml`, mount persistent volumes at `/data` and
+`/appdata` before the first production deployment, and provide secrets through
+Dokploy's environment settings.
 
 ## Limitations
 

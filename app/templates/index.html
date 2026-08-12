@@ -16,6 +16,15 @@
   </div>
 </div>
 
+{% if update_status and update_status.update_available %}
+<div class="alert alert-info alert-dismissible fade show" role="alert">
+  <strong>New version available</strong> — FIT to Garmin Bridge v{{ update_status.latest_version }} is available.
+  You are currently running v{{ app_version }}.
+  <a href="{{ update_status.release_url }}" target="_blank" rel="noopener" class="alert-link">View Release</a>
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
 {% if dashboard_message %}
 <div class="alert {{ 'alert-success' if dashboard_message.ok else 'alert-warning' }}">
   <strong>{{ dashboard_message.title }}</strong>
