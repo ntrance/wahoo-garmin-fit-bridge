@@ -14,45 +14,63 @@ The bridge incorporates a **Garmin Edge Emulation Engine**:
 
 ---
 
-## 2. Windows PC Setup (Zwift / MyWhoosh / Rouvy)
+## 2. Windows PC Setup (Zwift / MyWhoosh / ROUVY / TrainingPeaks)
 
-On Windows, virtual training apps save `.fit` files locally:
-* **Zwift**: `%USERPROFILE%\Documents\Zwift\Activities\`
-* **MyWhoosh**: `%USERPROFILE%\Documents\MyWhoosh\`
+Virtual cycling apps automatically save completed ride `.fit` files to local folders on your computer (e.g. `Documents\Zwift\Activities`).
 
-### Automatic Sync Setup (Windows Directory Junction):
-1. Install the official **Dropbox Desktop App** on your PC.
-2. Ensure your Dropbox sync folder contains `Apps\WahooFitness` (or create it).
-3. Open **Command Prompt** as Administrator (`cmd.exe`).
-4. Run this command to link your Zwift activities directly to Dropbox:
+> [!NOTE]
+> **What this command is doing:**
+> The `mklink /J` command creates a **live folder link (Directory Junction)** in Windows. It connects your app's local activity folder directly into your Dropbox folder. Your files are not moved or duplicated, but Dropbox instantly sees any newly saved ride and syncs it to the bridge without you needing to drag or copy files.
 
+### Step-by-step setup:
+1. Install the official **Dropbox Desktop App** on your PC so you have a local `Dropbox` folder.
+2. Open **Command Prompt** as Administrator (Search for `cmd` in the Start Menu, right-click, and select **Run as administrator**).
+3. Run the command for your training application:
+
+**Zwift:**
 ```cmd
 mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\Zwift" "%USERPROFILE%\Documents\Zwift\Activities"
 ```
 
-*(For MyWhoosh, replace the target path with your MyWhoosh activities directory).*
+**MyWhoosh:**
+```cmd
+mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\MyWhoosh" "%USERPROFILE%\Documents\MyWhoosh"
+```
 
-> [!TIP]
-> Whenever you finish an indoor ride in Zwift, Windows immediately mirrors the `.fit` file into Dropbox. The bridge detects it, converts the file to a Garmin Edge 1040 virtual ride, and uploads it to Garmin Connect within seconds.
+**ROUVY:**
+```cmd
+mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\Rouvy" "%USERPROFILE%\Documents\ROUVY"
+```
+
+**TrainingPeaks Virtual (indieVelo):**
+```cmd
+mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\TPVirtual" "%USERPROFILE%\Documents\TrainingPeaks Virtual\Activities"
+```
 
 ---
 
 ## 3. Mac / macOS Setup (Zwift / MyWhoosh)
 
-On macOS, Zwift and MyWhoosh save `.fit` files to:
-* `~/Documents/Zwift/Activities/`
+On macOS, virtual training apps save `.fit` files to your user `Documents` folder (e.g. `~/Documents/Zwift/Activities/`).
 
-### Automatic Sync Setup (macOS Symlink):
-1. Install the official **Dropbox Desktop App** on your Mac.
+> [!NOTE]
+> **What this command is doing:**
+> The `ln -s` command creates a **symbolic link (live folder alias)** between the app's local activity folder and your Dropbox sync folder. Every new ride file is automatically seen by Dropbox and uploaded by the bridge without manual file copying.
+
+### Step-by-step setup:
+1. Install the official **Dropbox Desktop App** for Mac.
 2. Open the **Terminal** app (`/Applications/Utilities/Terminal.app`).
-3. Run the following command:
+3. Run the command for your training application:
 
+**Zwift:**
 ```bash
 ln -s ~/Documents/Zwift/Activities ~/Dropbox/Apps/WahooFitness/Zwift
 ```
 
-> [!TIP]
-> Any ride completed on your Mac will sync directly to Dropbox -> Bridge -> Garmin Connect with zero manual export required.
+**MyWhoosh:**
+```bash
+ln -s ~/Documents/MyWhoosh ~/Dropbox/Apps/WahooFitness/MyWhoosh
+```
 
 ---
 

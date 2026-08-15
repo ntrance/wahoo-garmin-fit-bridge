@@ -41,25 +41,47 @@
   <div class="col-12">
     <div class="card border">
       <div class="card-header bg-white fw-bold">
-        💻 Windows PC Setup (Zwift / MyWhoosh / Rouvy)
+        💻 Windows PC Setup (Zwift / MyWhoosh / ROUVY / TrainingPeaks)
       </div>
       <div class="card-body">
         <p class="text-secondary small mb-2">
-          Virtual cycling apps save <code>.fit</code> files locally to your PC Documents folder:
+          Virtual cycling apps automatically save your completed ride <code>.fit</code> files to local folders on your computer (e.g. <code>Documents\Zwift\Activities</code>).
         </p>
-        <ul class="text-secondary small mb-3">
-          <li><strong>Zwift</strong>: <code>%USERPROFILE%\Documents\Zwift\Activities</code></li>
-          <li><strong>MyWhoosh</strong>: <code>%USERPROFILE%\Documents\MyWhoosh</code></li>
-        </ul>
-        <p class="text-secondary small mb-1 fw-semibold">Automatic 1-time setup (Windows Directory Junction):</p>
+
+        <div class="alert alert-info py-2 mb-3 small">
+          <strong>ℹ️ What this command is doing:</strong>
+          The <code>mklink /J</code> command creates a <strong>live folder link (Directory Junction)</strong>. It connects your app's local activities folder directly into your Dropbox folder. Your files are not moved or duplicated on your hard drive, but Dropbox instantly sees any newly saved ride and syncs it to the bridge without you needing to drag or copy files.
+        </div>
+
+        <p class="text-secondary small mb-1 fw-semibold">Step-by-step setup:</p>
         <ol class="text-secondary small mb-3">
-          <li>Install the official <strong>Dropbox Desktop App</strong> on your PC.</li>
-          <li>Open <strong>Command Prompt</strong> as Administrator (<code>cmd.exe</code>).</li>
-          <li>Run this command:</li>
+          <li>Install the official <strong>Dropbox Desktop App</strong> on your PC so you have a local <code>Dropbox</code> folder.</li>
+          <li>Open <strong>Command Prompt</strong> as Administrator (Search for <code>cmd</code> in the Start Menu, right-click, and select <strong>Run as administrator</strong>).</li>
+          <li>Run the command for your training application:</li>
         </ol>
-        <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\Zwift" "%USERPROFILE%\Documents\Zwift\Activities"</code></pre>
+
+        <div class="mb-3">
+          <label class="form-label text-dark fw-semibold small mb-1">Zwift:</label>
+          <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\Zwift" "%USERPROFILE%\Documents\Zwift\Activities"</code></pre>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-dark fw-semibold small mb-1">MyWhoosh:</label>
+          <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\MyWhoosh" "%USERPROFILE%\Documents\MyWhoosh"</code></pre>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-dark fw-semibold small mb-1">ROUVY:</label>
+          <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\Rouvy" "%USERPROFILE%\Documents\ROUVY"</code></pre>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-dark fw-semibold small mb-1">TrainingPeaks Virtual (indieVelo):</label>
+          <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\TPVirtual" "%USERPROFILE%\Documents\TrainingPeaks Virtual\Activities"</code></pre>
+        </div>
+
         <div class="alert alert-success py-2 mb-0 small">
-          ✅ <strong>Done:</strong> The moment you finish a ride in Zwift, Windows mirrors the <code>.fit</code> file to Dropbox. The bridge processes it and uploads to Garmin automatically.
+          ✅ <strong>Done:</strong> As soon as you hit "End Ride" in your virtual app, Windows links the <code>.fit</code> file into Dropbox, the bridge detects it, converts the header to Garmin Edge 1040 (with virtual activity tagging preserved), and uploads it to Garmin Connect!
         </div>
       </div>
     </div>
@@ -73,18 +95,31 @@
       </div>
       <div class="card-body">
         <p class="text-secondary small mb-2">
-          On macOS, Zwift and MyWhoosh save <code>.fit</code> files to:
+          On macOS, virtual training apps save <code>.fit</code> files to your user <code>Documents</code> folder (e.g. <code>~/Documents/Zwift/Activities/</code>).
         </p>
-        <ul class="text-secondary small mb-3">
-          <li><code>~/Documents/Zwift/Activities/</code></li>
-        </ul>
-        <p class="text-secondary small mb-1 fw-semibold">Automatic 1-time setup (macOS Symlink):</p>
+
+        <div class="alert alert-info py-2 mb-3 small">
+          <strong>ℹ️ What this command is doing:</strong>
+          The <code>ln -s</code> command creates a <strong>symbolic link (live folder alias)</strong> between the app's local activity folder and your Dropbox sync folder. Every new ride file is automatically seen by Dropbox and uploaded by the bridge without manual file copying.
+        </div>
+
+        <p class="text-secondary small mb-1 fw-semibold">Step-by-step setup:</p>
         <ol class="text-secondary small mb-3">
           <li>Install the official <strong>Dropbox Desktop App</strong> for Mac.</li>
-          <li>Open the <strong>Terminal</strong> app.</li>
-          <li>Run this command:</li>
+          <li>Open the <strong>Terminal</strong> app (press <code>Cmd + Space</code>, type <code>Terminal</code>, and hit Enter).</li>
+          <li>Run the command for your training application:</li>
         </ol>
-        <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>ln -s ~/Documents/Zwift/Activities ~/Dropbox/Apps/WahooFitness/Zwift</code></pre>
+
+        <div class="mb-3">
+          <label class="form-label text-dark fw-semibold small mb-1">Zwift:</label>
+          <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>ln -s ~/Documents/Zwift/Activities ~/Dropbox/Apps/WahooFitness/Zwift</code></pre>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-dark fw-semibold small mb-1">MyWhoosh:</label>
+          <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>ln -s ~/Documents/MyWhoosh ~/Dropbox/Apps/WahooFitness/MyWhoosh</code></pre>
+        </div>
+
         <div class="alert alert-success py-2 mb-0 small">
           ✅ <strong>Done:</strong> Any virtual ride finished on your Mac automatically syncs straight into Dropbox and uploads to Garmin Connect.
         </div>
