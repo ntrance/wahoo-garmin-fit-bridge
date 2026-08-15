@@ -202,27 +202,53 @@
     <div class="modal-content">
       <div class="modal-header border-bottom">
         <h5 class="modal-title text-danger d-flex align-items-center gap-2" id="purgeLogsModalLabel">
-          <span>🗑️</span> Purge All Logs
+          <span>🗑️</span> Purge Application Logs
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body">
-        <p class="mb-2">
-          Are you sure you want to clear the application logs?
-        </p>
-        <div class="alert alert-warning py-2 px-3 small mb-0">
-          ⚠️ <strong>Warning:</strong> This will erase the current log file (<code>app.log</code>) and all rotated backup files on disk. This action cannot be undone.
+      <form method="post" action="/logs/purge" class="m-0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="modal-body">
+          <p class="mb-3 text-secondary small">
+            Select whether to clear the entire log file or only purge entries belonging to a specific category:
+          </p>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Purge Scope:</label>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="category" id="purgeScopeCategory" value="all">
+              <label class="form-check-label small" for="purgeScopeCategory" id="purgeCategoryLabel">
+                <strong>Purge selected category only</strong> (<span id="purgeCategoryName">All</span>)
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="category" id="purgeScopeAll" value="all" checked>
+              <label class="form-check-label small" for="purgeScopeAll">
+                <strong>Purge all logs across all categories</strong> (full reset of <code>app.log</code>)
+              </label>
+            </div>
+          </div>
+
+          <div class="mb-3 d-none" id="purgeCategorySelectGroup">
+            <label for="purgeSpecificCategory" class="form-label small text-muted">Select specific category to remove:</label>
+            <select id="purgeSpecificCategory" class="form-select form-select-sm">
+              {% for cat in summary.categories %}
+              <option value="{{ cat.id }}">{{ cat.icon }} {{ cat.label }} ({{ cat.count }} lines)</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="alert alert-warning py-2 px-3 small mb-0">
+            ⚠️ <strong>Notice:</strong> Purging will permanently remove the selected entries from disk.
+          </div>
         </div>
-      </div>
-      <div class="modal-footer border-top">
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-        <form method="post" action="/logs/purge" class="m-0">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="modal-footer border-top">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-danger btn-sm d-flex align-items-center gap-1">
-            <span>🗑️ Confirm & Purge Logs</span>
+            <span>🗑️ Confirm & Purge</span>
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -425,6 +451,66 @@ document.addEventListener("DOMContentLoaded", function () {
           copyBtnText.innerText = "Copy Visible";
         }, 2000);
       });
+    });
+  }
+
+  // Purge Modal category sync
+  const purgeModal = document.getElementById("purgeLogsModal");
+  const purgeScopeCategory = document.getElementById("purgeScopeCategory");
+  const purgeScopeAll = document.getElementById("purgeScopeAll");
+  const purgeCategoryName = document.getElementById("purgeCategoryName");
+  const purgeCategorySelectGroup = document.getElementById("purgeCategorySelectGroup");
+  const purgeSpecificCategory = document.getElementById("purgeSpecificCategory");
+
+  const categoryNames = {
+    jobs: "Sync & Processing",
+    sources: "Sources & Scheduler",
+    garmin: "Garmin Connect",
+    http: "HTTP & Updates",
+    server: "Web Server",
+    other: "System & Other"
+  };
+
+  if (purgeModal) {
+    purgeModal.addEventListener("show.bs.modal", function () {
+      if (currentCategory && currentCategory !== "all" && categoryNames[currentCategory]) {
+        purgeCategoryName.innerText = categoryNames[currentCategory];
+        purgeScopeCategory.value = currentCategory;
+        purgeScopeCategory.checked = true;
+        if (purgeCategorySelectGroup) purgeCategorySelectGroup.classList.add("d-none");
+      } else {
+        purgeCategoryName.innerText = "Select specific below";
+        if (purgeSpecificCategory) purgeScopeCategory.value = purgeSpecificCategory.value;
+        if (purgeScopeAll) purgeScopeAll.checked = true;
+      }
+    });
+  }
+
+  if (purgeScopeCategory) {
+    purgeScopeCategory.addEventListener("change", function () {
+      if (this.checked) {
+        if (!currentCategory || currentCategory === "all") {
+          if (purgeCategorySelectGroup) purgeCategorySelectGroup.classList.remove("d-none");
+          if (purgeSpecificCategory) purgeScopeCategory.value = purgeSpecificCategory.value;
+        } else {
+          if (purgeCategorySelectGroup) purgeCategorySelectGroup.classList.add("d-none");
+          purgeScopeCategory.value = currentCategory;
+        }
+      }
+    });
+  }
+
+  if (purgeScopeAll) {
+    purgeScopeAll.addEventListener("change", function () {
+      if (this.checked) {
+        if (purgeCategorySelectGroup) purgeCategorySelectGroup.classList.add("d-none");
+      }
+    });
+  }
+
+  if (purgeSpecificCategory) {
+    purgeSpecificCategory.addEventListener("change", function () {
+      if (purgeScopeCategory) purgeScopeCategory.value = this.value;
     });
   }
 

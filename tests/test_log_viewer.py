@@ -146,7 +146,25 @@ def test_purge_logs(settings):
     # Verify backup is deleted and active log has new start entry
     assert not backup_file.exists()
     current_content = log_file.read_text()
-    assert "Logs were cleared by administrator" in current_content
+    assert "All logs were cleared by administrator" in current_content
+
+
+def test_purge_logs_by_category(settings):
+    log_file = settings.log_file
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    log_file.write_text(SAMPLE_LOGS)
+
+    ok, msg = purge_logs(settings, category="jobs")
+    assert ok
+    assert "purged" in msg.lower()
+
+    content = log_file.read_text()
+    # Jobs lines should be gone
+    assert "activity 100" not in content
+    # Other categories should be preserved!
+    assert "garminconnect" in content
+    assert "app.source_scheduler" in content
+    assert "Cleared" in content
 
 
 def test_web_routes_logs_and_purge(settings):
@@ -181,12 +199,21 @@ def test_web_routes_logs_and_purge(settings):
     assert "attachment" in resp_dl.headers.get("content-disposition", "")
     assert "Removed repeated source file" in resp_dl.text
 
-    # 4. POST /logs/purge
+    # 4. POST /logs/purge category
+    resp_purge_cat = client.post(
+        "/logs/purge",
+        data={"category": "http", "csrf_token": ""},
+        follow_redirects=True,
+    )
+    assert resp_purge_cat.status_code == 200
+    assert "HTTP & Updates" in resp_purge_cat.text
+
+    # 5. POST /logs/purge all
     resp_purge = client.post(
         "/logs/purge",
-        data={"csrf_token": ""},
+        data={"category": "all", "csrf_token": ""},
         follow_redirects=True,
     )
     assert resp_purge.status_code == 200
     assert "purged" in resp_purge.text
-    assert "Logs were cleared by administrator" in resp_purge.text
+    assert "All logs were cleared by administrator" in resp_purge.text

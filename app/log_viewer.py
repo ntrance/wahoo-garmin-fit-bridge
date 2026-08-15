@@ -183,18 +183,43 @@ def filter_entries(
     return filtered
 
 
-def purge_logs(settings: Settings) -> tuple[bool, str]:
-    """Clear the active log file and any rotated backups."""
+def purge_logs(settings: Settings, category: str = "all") -> tuple[bool, str]:
+    """Clear logs entirely or remove entries belonging to a specific category."""
     purged_count = 0
     try:
         settings.log_dir.mkdir(parents=True, exist_ok=True)
-        # 1. Truncate active log file
         log_file = settings.log_file
+
+        if category and category.lower() != "all":
+            target_cat = category.lower()
+            cat_label = CATEGORY_MAP.get(target_cat, (target_cat, ""))[0]
+            if not log_file.exists():
+                return True, f"No logs found to purge for category '{cat_label}'."
+
+            # Read and parse existing logs
+            all_entries = parse_log_file(log_file, max_lines=0)
+            kept_entries = [e for e in all_entries if e.category != target_cat]
+            removed_count = len(all_entries) - len(kept_entries)
+
+            now_iso = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+            fresh_notice = f"{now_iso} INFO [app.log_viewer] Cleared {removed_count} log entries for category '{cat_label}'.\n"
+
+            # Write back kept entries + notice
+            new_content = "\n".join(e.raw for e in kept_entries)
+            if new_content:
+                new_content += "\n" + fresh_notice
+            else:
+                new_content = fresh_notice
+
+            log_file.write_text(new_content)
+            return True, f"Successfully purged {removed_count} log entries for category '{cat_label}'."
+
+        # Otherwise purge all logs
         if log_file.exists():
             log_file.write_text("")
             purged_count += 1
 
-        # 2. Remove rotated log backup files (app.log.1, app.log.2, etc.)
+        # Remove rotated log backup files (app.log.1, app.log.2, etc.)
         for backup_file in settings.log_dir.glob(f"{log_file.name}.*"):
             try:
                 backup_file.unlink(missing_ok=True)
@@ -202,12 +227,11 @@ def purge_logs(settings: Settings) -> tuple[bool, str]:
             except OSError:
                 pass
 
-        # 3. Write a fresh clean start notice
         now_iso = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-        fresh_line = f"{now_iso} INFO [app.log_viewer] Logs were cleared by administrator.\n"
+        fresh_line = f"{now_iso} INFO [app.log_viewer] All logs were cleared by administrator.\n"
         with log_file.open("a") as handle:
             handle.write(fresh_line)
 
-        return True, f"Logs successfully purged (cleared active log and {purged_count - 1} backup files)."
+        return True, "All application logs were successfully purged."
     except Exception as exc:
         return False, f"Failed to purge logs: {exc}"

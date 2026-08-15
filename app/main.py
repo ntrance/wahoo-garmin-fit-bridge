@@ -32,6 +32,7 @@ from app.garmin_upload import (
     start_garmin_session_login,
 )
 from app.log_viewer import (
+    CATEGORY_MAP,
     filter_entries,
     get_logs_summary,
     parse_log_file,
@@ -1309,6 +1310,14 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         if not raw_logs:
             raw_logs = "No log entries found matching your filter criteria."
 
+        flash_text = ""
+        if flash == "purged":
+            flash_text = "All application logs were successfully purged."
+        elif flash.startswith("purged_"):
+            cat_key = flash.replace("purged_", "")
+            cat_name = CATEGORY_MAP.get(cat_key, (cat_key, ""))[0]
+            flash_text = f"Logs for category '{cat_name}' were successfully purged."
+
         return templates.TemplateResponse(
             request,
             "logs.html",
@@ -1321,7 +1330,7 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 "current_search": q,
                 "current_view": view,
                 "raw_logs": raw_logs,
-                "flash_message": "All application logs were successfully purged." if flash == "purged" else "",
+                "flash_message": flash_text,
             },
         )
 
@@ -1331,10 +1340,13 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         _auth: None = Depends(require_auth),
         _csrf: None = Depends(require_csrf),
     ) -> Response:
+        form = await request.form()
+        category = str(form.get("category") or "all").strip()
         settings = request.app.state.settings
-        purge_logs(settings)
+        purge_logs(settings, category=category)
+        redirect_param = f"purged_{category}" if category != "all" else "purged"
         return RedirectResponse(
-            url="/logs?flash=purged",
+            url=f"/logs?flash={redirect_param}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
