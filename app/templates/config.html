@@ -47,9 +47,9 @@
 {% set coros_configured = coros_profile.username and coros_profile.password_saved %}
 {% set coros_ready = (not settings.coros_source_enabled) or coros_configured %}
 {% set connections_complete = dropbox_ready and igpsport_ready and coros_ready and setup.garmin.configured %}
-<details class="config-accordion border rounded mb-4" {{ "open" if settings.dry_run or not connections_complete else "" }}>
+<details id="section-connection-settings" class="config-accordion border rounded mb-4" {{ "open" if settings.dry_run or not connections_complete else "" }}>
   <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
-    <h2 class="h5 mb-0">Connection Settings</h2>
+    <h2 class="h5 mb-0">Platform & Device Connection Settings</h2>
     <span class="d-flex align-items-center justify-content-end gap-2 flex-wrap">
       <span class="badge {{ 'text-bg-success' if connections_complete else 'text-bg-warning' }}">
         {{ "Setup complete" if connections_complete else "Setup incomplete" }}
@@ -259,35 +259,57 @@
 </details>
 
 <div class="mb-4">
-  <details class="config-accordion border rounded mb-3" open>
+  <details id="section-activity-sources" class="config-accordion border rounded mb-3" open>
     <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
-      <h2 class="h5 mb-0">Activity Sources</h2>
-      <span class="badge text-bg-secondary">{{ source_statuses|selectattr("enabled")|list|length }} enabled</span>
+      <h2 class="h5 mb-0">Activity Source Settings & Live Status</h2>
+      <span class="d-flex align-items-center justify-content-end gap-2 flex-wrap">
+        {% for src in source_statuses %}
+        <span class="badge {{ 'text-bg-success' if src.enabled else 'text-bg-secondary' }}">
+          {{ src.display_name }}: {{ "Active" if src.enabled else "Disabled" }}
+        </span>
+        {% endfor %}
+        <span class="badge text-bg-primary">{{ source_statuses|selectattr("enabled")|list|length }} of {{ source_statuses|length }} active</span>
+      </span>
     </summary>
     <div class="border-top p-3">
-      <form method="post" action="/config/sources/sync" class="mb-3">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button class="btn btn-primary btn-sm" type="submit">Sync all enabled sources now</button>
-      </form>
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div class="text-muted small">
+          Live sync status, background polling schedule, and manual triggers for all supported activity platforms. To activate or deactivate a platform, toggle its switch in <a href="#section-connection-settings" class="fw-semibold">Platform & Device Connection Settings</a> above.
+        </div>
+        {% if source_statuses|selectattr("enabled")|list|length > 0 %}
+        <form method="post" action="/config/sources/sync" class="m-0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-primary btn-sm" type="submit">Sync all active sources now</button>
+        </form>
+        {% endif %}
+      </div>
       <div class="row g-3">
-        {% for source in source_statuses if source.enabled %}
+        {% for source in source_statuses %}
         <div class="col-12">
-          <div class="border rounded p-3">
-            <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+          {% if source.enabled %}
+          <div class="border border-success-subtle rounded p-3 bg-white shadow-sm">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-2 flex-wrap">
               <div>
-                <h3 class="h6 mb-1">{{ source.display_name }}</h3>
-                <span class="badge {{ 'text-bg-success' if source.enabled else 'text-bg-secondary' }}">{{ "Enabled" if source.enabled else "Disabled" }}</span>
+                <h3 class="h6 mb-1 fw-bold text-dark">{{ source.display_name }}</h3>
+                <span class="badge text-bg-success">Active / Enabled</span>
                 <span class="badge {{ 'text-bg-success' if source.configured else 'text-bg-warning' }}">{{ "Configured" if source.configured else "Needs setup" }}</span>
               </div>
-              <div class="d-flex gap-2">
-                <form method="post" action="/config/source/{{ source.source_type }}/test">
+              <div class="d-flex gap-2 flex-wrap">
+                <form method="post" action="/config/source/{{ source.source_type }}/test" class="m-0">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <button class="btn btn-outline-primary btn-sm" type="submit">Test connection</button>
                 </form>
-                <form method="post" action="/config/source/{{ source.source_type }}/sync">
+                <form method="post" action="/config/source/{{ source.source_type }}/sync" class="m-0">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                  <button class="btn btn-outline-primary btn-sm" type="submit" {{ "disabled" if not source.enabled else "" }}>Sync now</button>
+                  <button class="btn btn-outline-primary btn-sm" type="submit">Sync now</button>
                 </form>
+                {% if source.source_type == 'dropbox' %}
+                <a href="#section-dropbox" class="btn btn-outline-secondary btn-sm">Dropbox OAuth ↓</a>
+                {% elif source.source_type == 'igpsport' %}
+                <a href="#section-igpsport" class="btn btn-outline-secondary btn-sm">iGPSPORT Profile ↓</a>
+                {% elif source.source_type == 'coros' %}
+                <a href="#section-coros" class="btn btn-outline-secondary btn-sm">COROS Profile ↓</a>
+                {% endif %}
               </div>
             </div>
             <dl class="row small mb-0">
@@ -307,6 +329,30 @@
               {% endif %}
             </dl>
           </div>
+          {% else %}
+          <div class="border rounded p-3 bg-light opacity-75">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-2 flex-wrap">
+              <div>
+                <h3 class="h6 mb-1 text-muted">{{ source.display_name }}</h3>
+                <span class="badge text-bg-secondary">Disabled</span>
+              </div>
+              <div>
+                <a href="#section-connection-settings" class="btn btn-outline-secondary btn-sm">Enable in Connection Settings ↑</a>
+              </div>
+            </div>
+            <p class="text-muted small mb-0">
+              {% if source.source_type == 'dropbox' %}
+              Watches Dropbox folder for Wahoo ELEMNT, Hammerhead Karoo (via Dropsync), Zwift, MyWhoosh, ROUVY, and TrainingPeaks Virtual FIT files.
+              {% elif source.source_type == 'igpsport' %}
+              Direct cloud-to-cloud API synchronization with iGPSPORT cycling computer accounts.
+              {% elif source.source_type == 'coros' %}
+              Direct cloud-to-cloud API synchronization with COROS accounts (Watches & DURA bike computers).
+              {% else %}
+              Activity source integration.
+              {% endif %}
+            </p>
+          </div>
+          {% endif %}
         </div>
         {% endfor %}
       </div>
@@ -314,7 +360,7 @@
   </details>
 
   {% if settings.igpsport_source_enabled %}
-  <details class="config-accordion border rounded mb-3" {{ "open" if not igpsport_configured else "" }}>
+  <details id="section-igpsport" class="config-accordion border rounded mb-3" {{ "open" if not igpsport_configured else "" }}>
     <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
       <h2 class="h5 mb-0">iGPSPORT Cloud</h2>
       <span class="badge {{ 'text-bg-success' if igpsport_configured else 'text-bg-warning' }}">
@@ -414,7 +460,7 @@
   {% endif %}
 
   {% if settings.coros_source_enabled %}
-  <details class="config-accordion border rounded mb-3" {{ "open" if not coros_configured else "" }}>
+  <details id="section-coros" class="config-accordion border rounded mb-3" {{ "open" if not coros_configured else "" }}>
     <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
       <h2 class="h5 mb-0">COROS Cloud (Watches & DURA)</h2>
       <span class="badge {{ 'text-bg-success' if coros_configured else 'text-bg-warning' }}">
@@ -489,7 +535,7 @@
   </details>
   {% endif %}
 
-  <details class="config-accordion border rounded mb-3" {{ "open" if dropbox_oauth or not setup.dropbox.configured else "" }}>
+  <details id="section-dropbox" class="config-accordion border rounded mb-3" {{ "open" if dropbox_oauth or not setup.dropbox.configured else "" }}>
     <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
       <h2 class="h5 mb-0">Dropbox</h2>
       <span class="d-flex align-items-center gap-2">
@@ -584,7 +630,7 @@
     </div>
   </details>
 
-  <details class="config-accordion border rounded" {{ "open" if setup.garmin.profile_error or setup.garmin.cooldown or not setup.garmin.configured else "" }}>
+  <details id="section-garmin" class="config-accordion border rounded" {{ "open" if setup.garmin.profile_error or setup.garmin.cooldown or not setup.garmin.configured else "" }}>
     <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
       <h2 class="h5 mb-0">Garmin Upload</h2>
       <span class="d-flex align-items-center gap-2">
