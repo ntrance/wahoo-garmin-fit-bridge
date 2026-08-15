@@ -73,11 +73,17 @@
 <section class="border rounded p-3 mb-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="h5 mb-0">FIT Preview</h2>
-    {% if preview.available %}
-    <span class="badge text-bg-success">Loaded</span>
-    {% else %}
-    <span class="badge text-bg-warning">No preview</span>
-    {% endif %}
+    <div class="d-flex align-items-center gap-2">
+      {% if preview.available %}
+      <span class="badge text-bg-success">Loaded</span>
+      {% else %}
+      <span class="badge text-bg-warning">No preview</span>
+      {% endif %}
+      <form method="post" action="/activity/{{ activity.id }}/refresh-preview" class="d-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-outline-secondary btn-sm py-0" type="submit" title="Re-read FIT file and re-render map & charts">↻ Re-render</button>
+      </form>
+    </div>
   </div>
   {% if preview.message %}
   <div class="alert {{ 'alert-info' if preview.available else 'alert-warning' }} py-2">{{ preview.message }}</div>

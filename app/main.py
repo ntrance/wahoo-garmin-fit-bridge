@@ -19,7 +19,11 @@ from fastapi.templating import Jinja2Templates
 from app.db import Database
 from app.dropbox_oauth import complete_dropbox_oauth, start_dropbox_oauth
 from app.garmin_upload import friendly_upload_error
-from app.fit_preview import build_activity_preview
+from app.fit_preview import (
+    _build_activity_preview_cached,
+    build_activity_preview,
+    get_disk_preview_path,
+)
 from app.garmin_device import (
     find_garmin_target,
     garmin_device_presets,
@@ -327,6 +331,25 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
     @app.post("/activity/{activity_id}/reprocess")
     async def reprocess(activity_id: int, _csrf: None = Depends(require_csrf)) -> RedirectResponse:
         await _run_activity_action(app, app.state.service, activity_id, True)
+        return RedirectResponse(f"/activity/{activity_id}", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/activity/{activity_id}/refresh-preview")
+    async def refresh_preview(
+        request: Request,
+        activity_id: int,
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        activity = request.app.state.db.get_activity(activity_id)
+        if activity is not None:
+            previews_dir = request.app.state.settings.previews_dir
+            disk_path = get_disk_preview_path(activity_id, previews_dir)
+            if disk_path and disk_path.exists():
+                try:
+                    disk_path.unlink()
+                except Exception:
+                    pass
+            _build_activity_preview_cached.cache_clear()
+            await asyncio.to_thread(build_activity_preview, activity, previews_dir)
         return RedirectResponse(f"/activity/{activity_id}", status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/activity/{activity_id}/delete-dropbox")

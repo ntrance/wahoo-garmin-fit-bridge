@@ -68,15 +68,20 @@ def load_preview_from_disk(activity_id: str | int, previews_dir: Path | None = N
 
 def build_activity_preview(activity: dict[str, object], previews_dir: Path | None = None) -> ActivityPreview:
     activity_id = activity.get("id") or activity.get("activity_id")
+    cached = None
     if activity_id:
         cached = load_preview_from_disk(activity_id, previews_dir)
-        if cached is not None:
+        if cached is not None and cached.available and cached.route_points:
             return cached
 
     path = _activity_file_path(activity)
     if path is None:
+        if cached is not None:
+            return cached
         return ActivityPreview(False, "No FIT file path is stored for this activity.", None, None, [], {})
     if not path.exists():
+        if cached is not None:
+            return cached
         return ActivityPreview(False, f"FIT file is not currently available at {path}.", None, None, [], {})
 
     try:
@@ -86,6 +91,8 @@ def build_activity_preview(activity: dict[str, object], previews_dir: Path | Non
             save_preview_to_disk(activity_id, preview, previews_dir)
         return preview
     except Exception as exc:  # pragma: no cover - decoder errors vary by FIT file
+        if cached is not None:
+            return cached
         return ActivityPreview(False, f"Could not read FIT preview data: {exc}", None, None, [], {})
 
 
@@ -145,7 +152,15 @@ def _activity_file_path(activity: dict[str, object]) -> Path | None:
     for key in ("current_path", "source_path"):
         value = activity.get(key)
         if value:
-            return Path(str(value))
+            p = Path(str(value))
+            if p.exists():
+                return p
+    filename = activity.get("filename") or activity.get("source_original_filename")
+    if filename:
+        for parent in ("/data/uploaded", "/data/processing", "/data/incoming", "/data/archive"):
+            candidate = Path(parent) / str(filename)
+            if candidate.exists():
+                return candidate
     return None
 
 
