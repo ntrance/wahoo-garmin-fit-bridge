@@ -185,14 +185,14 @@
   </div>
   {% endif %}
   {% if preview.stacked_chart_svg %}
-  <div class="border rounded p-3 bg-light mt-3">
+  <div class="border rounded p-3 bg-body-secondary mt-3">
     <div class="d-flex justify-content-between align-items-center mb-2">
       <h3 class="h6 mb-0 fw-bold">Activity Metrics Timeline</h3>
       <span class="text-secondary small">Elevation profile in green</span>
     </div>
     <div class="d-flex flex-wrap gap-2 mb-3">
       {% for metric in preview.metrics %}
-      <span class="badge bg-white border text-dark p-2">
+      <span class="badge bg-body border text-body p-2">
         <strong style="color: {{ '#0284c7' if metric.label == 'Speed' else ('#f59e0b' if metric.label == 'Power' else '#ef4444') }};">{{ metric.label }}</strong>:
         min {{ metric.min }} {{ metric.unit }} · avg {{ metric.avg }} · max {{ metric.max }}
       </span>

@@ -8,7 +8,7 @@
   <!-- How it Works -->
   <div class="col-12">
     <div class="card border">
-      <div class="card-header bg-white fw-bold">
+      <div class="card-header bg-body-tertiary fw-bold">
         ⚡ How Garmin Edge Emulation & Watch Physio TrueUp Work
       </div>
       <div class="card-body">
@@ -17,7 +17,7 @@
         </p>
         <div class="row g-3">
           <div class="col-12">
-            <div class="p-3 border rounded bg-light">
+            <div class="p-3 border rounded bg-body-secondary">
               <h6 class="fw-semibold text-primary mb-1">Physical Head Units (Karoo / COROS / Wahoo / iGPSPORT)</h6>
               <p class="text-muted small mb-0">
                 The bridge rewrites the FIT header to an emulated <strong>Garmin Edge 1040</strong> (Product <code>3907</code>, Unit ID <code>3991000001</code>). Garmin Connect treats the ride as recorded on a genuine Garmin head unit, syncing all physiological load metrics down to your Garmin watch.
@@ -25,7 +25,7 @@
             </div>
           </div>
           <div class="col-12">
-            <div class="p-3 border rounded bg-light">
+            <div class="p-3 border rounded bg-body-secondary">
               <h6 class="fw-semibold text-primary mb-1">Virtual Trainers (Zwift / MyWhoosh / TrainingPeaks Virtual)</h6>
               <p class="text-muted small mb-0">
                 The bridge rewrites the header to a Garmin Edge 1040 <strong>while preserving <code>sub_sport: 27</code> (Virtual Activity)</strong>. In Garmin Connect, the activity displays as an indoor Virtual Ride while still giving your watch full TSS, VO2 Max, and Training Load.
@@ -40,7 +40,7 @@
   <!-- Windows PC Guide -->
   <div class="col-12">
     <div class="card border">
-      <div class="card-header bg-white fw-bold">
+      <div class="card-header bg-body-tertiary fw-bold">
         💻 Windows PC Setup (Zwift / MyWhoosh / ROUVY / TrainingPeaks)
       </div>
       <div class="card-body">
@@ -90,7 +90,7 @@
   <!-- macOS Guide -->
   <div class="col-12">
     <div class="card border">
-      <div class="card-header bg-white fw-bold">
+      <div class="card-header bg-body-tertiary fw-bold">
         🍎 Mac / macOS Setup (Zwift / MyWhoosh)
       </div>
       <div class="card-body">
@@ -130,7 +130,7 @@
   <!-- Hammerhead Karoo -->
   <div class="col-12">
     <div class="card border">
-      <div class="card-header bg-white fw-bold">
+      <div class="card-header bg-body-tertiary fw-bold">
         🚴 Hammerhead Karoo (1, 2, 3) Setup
       </div>
       <div class="card-body">
@@ -162,7 +162,7 @@
   <!-- COROS Setup -->
   <div class="col-12">
     <div class="card border">
-      <div class="card-header bg-white fw-bold">
+      <div class="card-header bg-body-tertiary fw-bold">
         ⌚ COROS (Watches & DURA Bike Computers) Setup
       </div>
       <div class="card-body">
@@ -190,7 +190,7 @@
   <!-- Local Folder Watcher -->
   <div class="col-12">
     <div class="card border">
-      <div class="card-header bg-white fw-bold">
+      <div class="card-header bg-body-tertiary fw-bold">
         📁 Local Folder Watcher (NAS / Local Server)
       </div>
       <div class="card-body">
@@ -208,7 +208,7 @@
   <!-- Garmin Two-Factor Authentication (MFA) & CLI Setup -->
   <div class="col-12">
     <div class="card border">
-      <div class="card-header bg-white fw-bold">
+      <div class="card-header bg-body-tertiary fw-bold">
         🔐 Garmin Two-Factor Authentication (MFA) & Terminal Login
       </div>
       <div class="card-body">
@@ -217,17 +217,17 @@
         </p>
         <div class="row g-3">
           <div class="col-md-6">
-            <div class="p-3 border rounded bg-light h-100">
-              <h6 class="fw-semibold text-dark mb-1">Option 1: Web Browser UI</h6>
-              <p class="text-muted small mb-0">
+            <div class="p-3 border rounded bg-body-secondary h-100">
+              <h6 class="fw-semibold text-body mb-1">Option 1: Web Browser UI</h6>
+              <p class="text-body-secondary small mb-0">
                 In <strong>Config ➔ Garmin Upload</strong>, enter your Garmin email & password. If Garmin requires MFA, a verification box will appear asking for the 6-digit code sent to your email. Enter it and click <strong>Verify & Complete Setup</strong>.
               </p>
             </div>
           </div>
           <div class="col-md-6">
-            <div class="p-3 border rounded bg-light h-100">
-              <h6 class="fw-semibold text-dark mb-1">Option 2: Terminal / Docker CLI Login</h6>
-              <p class="text-muted small mb-2">
+            <div class="p-3 border rounded bg-body-secondary h-100">
+              <h6 class="fw-semibold text-body mb-1">Option 2: Terminal / Docker CLI Login</h6>
+              <p class="text-body-secondary small mb-2">
                 If you prefer to log in interactively from the command line on your server, run:
               </p>
               <pre class="bg-dark text-light p-2 rounded small mb-0 user-select-all"><code>docker compose run --rm -it bridge wahoo-bridge-garmin-login</code></pre>
@@ -243,13 +243,13 @@
 
   <!-- Open Source & Support -->
   <div class="col-12 text-center py-3">
-    <div class="card border bg-light p-4">
+    <div class="card border bg-body-secondary p-4">
       <h5 class="fw-bold mb-2">⭐ Open Source & Community Support</h5>
-      <p class="text-secondary small mb-3">
+      <p class="text-body-secondary small mb-3">
         FIT to Garmin Bridge is open source and community-driven. If you find it useful, consider starring the repo or supporting ongoing development!
       </p>
       <div class="d-flex justify-content-center gap-3 flex-wrap">
-        <a href="https://github.com/ntrance/wahoo-garmin-fit-bridge" target="_blank" rel="noopener noreferrer" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-2">
+        <a href="https://github.com/ntrance/wahoo-garmin-fit-bridge" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-github" viewBox="0 0 16 16">
             <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
           </svg>

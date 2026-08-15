@@ -51,20 +51,20 @@
     {% endif %}
   {% endfor %}
   {% if summary.warnings_and_errors > 0 %}
-  <button type="button" class="btn btn-sm btn-outline-warning text-dark log-category-pill" data-level="WARNER">
+  <button type="button" class="btn btn-sm btn-outline-warning text-body log-category-pill" data-level="WARNER">
     ⚠️ Warnings & Errors <span class="badge bg-warning text-dark ms-1">{{ summary.warnings_and_errors }}</span>
   </button>
   {% endif %}
 </div>
 
 <!-- Controls Bar -->
-<div class="card mb-3 border bg-light shadow-sm">
+<div class="card mb-3 border bg-body-secondary shadow-sm">
   <div class="card-body p-2">
     <div class="row g-2 align-items-center">
       <!-- Search Input -->
       <div class="col-12 col-md-5">
         <div class="input-group input-group-sm">
-          <span class="input-group-text bg-white">🔍</span>
+          <span class="input-group-text bg-body">🔍</span>
           <input
             type="text"
             id="logSearchInput"
@@ -157,11 +157,11 @@
               {% elif entry.level == 'DEBUG' %}
                 <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-1.5 py-0.5">DEBUG</span>
               {% else %}
-                <span class="badge bg-light text-dark border px-1.5 py-0.5">{{ entry.level }}</span>
+                <span class="badge bg-body-secondary text-body border px-1.5 py-0.5">{{ entry.level }}</span>
               {% endif %}
             </td>
             <td>
-              <span class="badge bg-light text-dark border text-nowrap px-1.5 py-0.5" title="Logger: {{ entry.logger }}">
+              <span class="badge bg-body-secondary text-body border text-nowrap px-1.5 py-0.5" title="Logger: {{ entry.logger }}">
                 {{ entry.category_icon }} {{ entry.category_label }}
               </span>
             </td>

@@ -35,7 +35,7 @@
 <div class="row g-3 mb-4">
   {% for label, key in [("Total", "total"), ("Uploaded", "uploaded"), ("Already on Garmin", "already_on_garmin"), ("Failed", "failed"), ("Duplicate", "duplicate"), ("Pending", "new")] %}
   <div class="col-6 col-md-2">
-    <div class="border rounded p-3">
+    <div class="border rounded p-3 bg-body-secondary">
       <div class="text-secondary small">{{ label }}</div>
       <div class="h4 mb-0">{{ stats.get(key, 0) }}</div>
     </div>
@@ -67,7 +67,7 @@
         <tr>
           <td><a href="/activity/{{ activity.id }}">{{ activity.id }}</a></td>
           <td>{{ activity.filename }}</td>
-          <td><span class="badge text-bg-light border text-dark">{{ activity.source_display_name or activity.source_type or "Local / legacy" }}</span></td>
+          <td><span class="badge bg-body-secondary text-body border">{{ activity.source_display_name or activity.source_type or "Local / legacy" }}</span></td>
           <td><span class="badge text-bg-warning">{{ activity.status }}</span></td>
           <td>{{ activity.activity_start_time or "" }}</td>
           <td>
@@ -114,14 +114,14 @@
       <tr class="table-secondary fw-semibold">
         <td colspan="9" class="py-2">
           {{ month_label }}
-          <span class="badge text-bg-light border text-dark ms-2">{{ month_activities | length }} ride{{ 's' if month_activities | length != 1 else '' }}</span>
+          <span class="badge bg-body-secondary text-body border ms-2">{{ month_activities | length }} ride{{ 's' if month_activities | length != 1 else '' }}</span>
         </td>
       </tr>
       {% for activity in month_activities %}
       <tr>
         <td><a href="/activity/{{ activity.id }}">{{ activity.id }}</a></td>
         <td>{{ activity.filename }}</td>
-        <td><span class="badge text-bg-light border text-dark">{{ activity.source_display_name or activity.source_type or "Local / legacy" }}</span></td>
+        <td><span class="badge bg-body-secondary text-body border">{{ activity.source_display_name or activity.source_type or "Local / legacy" }}</span></td>
         <td>
           <span class="badge text-bg-secondary">
             {{ "already on Garmin" if activity.status == "already_on_garmin" else activity.status }}
