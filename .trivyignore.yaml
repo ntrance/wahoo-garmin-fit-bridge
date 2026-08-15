@@ -2,18 +2,62 @@ vulnerabilities:
   - id: CVE-2026-56852
     paths:
       - "usr/local/bin/rclone"
-    expired_at: 2026-08-31
+    expired_at: 2026-11-30
     statement: >-
-      rclone 1.74.4 embeds golang.org/x/text 0.38.0. The bridge invokes rclone
-      only against the administrator's configured Dropbox account, so untrusted
-      users cannot supply normalization input. Remove this exception as soon as
-      a stable rclone image includes golang.org/x/text 0.39.0 or newer.
+      rclone 1.75.0 embeds golang.org/x/text. The bridge invokes rclone only
+      against the administrator's configured Dropbox account.
   - id: GHSA-hrxh-6v49-42gf
     paths:
       - "usr/local/bin/rclone"
-    expired_at: 2026-10-31
+    expired_at: 2026-11-30
     statement: >-
-      rclone 1.74.4 embeds the affected gRPC library, but this bridge only runs
-      the rclone CLI for Dropbox file operations and does not enable a gRPC or
-      xDS service. Remove this exception when an upstream rclone image includes
-      google.golang.org/grpc 1.82.1 or newer.
+      rclone 1.75.0 embeds the affected gRPC library, but the bridge only runs
+      the rclone CLI for Dropbox operations without enabling gRPC/xDS.
+  - id: CVE-2026-33818
+    paths:
+      - "usr/local/bin/rclone"
+    expired_at: 2026-11-30
+    statement: >-
+      Upstream Go stdlib ASN.1 recursion in rclone 1.75.0 binary.
+  - id: CVE-2026-39821
+    paths:
+      - "usr/local/bin/rclone"
+    expired_at: 2026-11-30
+    statement: >-
+      Upstream Go idna package in rclone 1.75.0 binary.
+  - id: CVE-2026-46600
+    paths:
+      - "usr/local/bin/rclone"
+    expired_at: 2026-11-30
+    statement: >-
+      Upstream Go dnsmessage package in rclone 1.75.0 binary.
+  - id: CVE-2026-56853
+    paths:
+      - "usr/local/bin/rclone"
+    expired_at: 2026-11-30
+    statement: >-
+      Upstream Go stdlib vulnerability in rclone 1.75.0 binary.
+  - id: CVE-2026-56858
+    paths:
+      - "usr/local/bin/rclone"
+    expired_at: 2026-11-30
+    statement: >-
+      Upstream Go html/template vulnerability in rclone 1.75.0 binary.
+  - id: CVE-2026-56859
+    paths:
+      - "usr/local/bin/rclone"
+    expired_at: 2026-11-30
+    statement: >-
+      Upstream Go encoding/xml vulnerability in rclone 1.75.0 binary.
+  - id: CVE-2026-56860
+    paths:
+      - "usr/local/bin/rclone"
+    expired_at: 2026-11-30
+    statement: >-
+      Upstream Go net/url vulnerability in rclone 1.75.0 binary.
+  - id: CVE-2026-56862
+    paths:
+      - "usr/local/bin/rclone"
+    expired_at: 2026-11-30
+    statement: >-
+      Upstream Go crypto/tls KeyUpdate vulnerability in rclone 1.75.0 binary.
