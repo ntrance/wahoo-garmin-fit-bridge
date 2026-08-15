@@ -42,6 +42,73 @@
         padding: 0;
         border-radius: 50%;
       }
+
+      /* Dark mode toned-down contrast & flashbang elimination */
+      [data-bs-theme="dark"] {
+        --bs-body-bg: #121518;
+        --bs-body-color: #dee2e6;
+        --bs-secondary-bg: #1c2127;
+        --bs-tertiary-bg: #16191d;
+        --bs-border-color: #2b313a;
+        --bs-border-color-translucent: rgba(255, 255, 255, 0.1);
+      }
+
+      .table-month-row,
+      .table-month-row > td,
+      .table-month-row > th {
+        background-color: #e9ecef !important;
+        color: #212529 !important;
+        border-color: #dee2e6 !important;
+      }
+
+      [data-bs-theme="dark"] .table-month-row,
+      [data-bs-theme="dark"] .table-month-row > td,
+      [data-bs-theme="dark"] .table-month-row > th,
+      [data-bs-theme="dark"] .table-secondary,
+      [data-bs-theme="dark"] .table-secondary > td,
+      [data-bs-theme="dark"] .table-secondary > th,
+      [data-bs-theme="dark"] .table-light,
+      [data-bs-theme="dark"] .table-light > td,
+      [data-bs-theme="dark"] .table-light > th {
+        --bs-table-bg: #1c2127 !important;
+        --bs-table-color: #dee2e6 !important;
+        --bs-table-border-color: #2b313a !important;
+        background-color: #1c2127 !important;
+        color: #dee2e6 !important;
+        border-color: #2b313a !important;
+      }
+
+      [data-bs-theme="dark"] .table > :not(caption) > * > * {
+        border-bottom-color: #2b313a;
+      }
+
+      [data-bs-theme="dark"] .card {
+        background-color: #16191d;
+        border-color: #2b313a;
+      }
+
+      [data-bs-theme="dark"] .bg-light,
+      [data-bs-theme="dark"] .bg-body-secondary {
+        background-color: #1c2127 !important;
+      }
+
+      [data-bs-theme="dark"] .bg-body-tertiary {
+        background-color: #14171a !important;
+      }
+
+      [data-bs-theme="dark"] .border {
+        border-color: #2b313a !important;
+      }
+
+      [data-bs-theme="dark"] .modal-content {
+        background-color: #16191d;
+        border-color: #2b313a;
+      }
+
+      [data-bs-theme="dark"] .dropdown-menu {
+        background-color: #16191d;
+        border-color: #2b313a;
+      }
     </style>
   </head>
   <body>

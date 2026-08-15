@@ -111,7 +111,7 @@
     </thead>
     <tbody>
       {% for month_label, month_activities in grouped_activities %}
-      <tr class="table-secondary fw-semibold">
+      <tr class="table-month-row fw-semibold">
         <td colspan="9" class="py-2">
           {{ month_label }}
           <span class="badge bg-body-secondary text-body border ms-2">{{ month_activities | length }} ride{{ 's' if month_activities | length != 1 else '' }}</span>
