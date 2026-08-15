@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Help & Multi-Platform Sync Guide</h1>
+</div>
+
+<div class="row g-4">
+  <!-- How it Works -->
+  <div class="col-12">
+    <div class="card border">
+      <div class="card-header bg-body-tertiary fw-bold">
+        ⚡ How Garmin Edge Emulation & Watch Physio TrueUp Work
+      </div>
+      <div class="card-body">
+        <p class="text-secondary mb-3">
+          Garmin Connect normally accepts third-party FIT uploads but <strong>refuses to calculate Training Load, Acute Load, Recovery Time, or VO2 Max for your Garmin watch</strong> unless the file claims to be from a Garmin device.
+        </p>
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="p-3 border rounded bg-body-secondary">
+              <h6 class="fw-semibold text-primary mb-1">Physical Head Units (Karoo / COROS / Wahoo / iGPSPORT)</h6>
+              <p class="text-muted small mb-0">
+                The bridge rewrites the FIT header to an emulated <strong>Garmin Edge 1040</strong> (Product <code>3907</code>, Unit ID <code>3991000001</code>). Garmin Connect treats the ride as recorded on a genuine Garmin head unit, syncing all physiological load metrics down to your Garmin watch.
+              </p>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="p-3 border rounded bg-body-secondary">
+              <h6 class="fw-semibold text-primary mb-1">Virtual Trainers (Zwift / MyWhoosh / TrainingPeaks Virtual)</h6>
+              <p class="text-muted small mb-0">
+                The bridge rewrites the header to a Garmin Edge 1040 <strong>while preserving <code>sub_sport: 27</code> (Virtual Activity)</strong>. In Garmin Connect, the activity displays as an indoor Virtual Ride while still giving your watch full TSS, VO2 Max, and Training Load.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Windows PC Guide -->
+  <div class="col-12">
+    <div class="card border">
+      <div class="card-header bg-body-tertiary fw-bold">
+        💻 Windows PC Setup (Zwift / MyWhoosh / ROUVY / TrainingPeaks)
+      </div>
+      <div class="card-body">
+        <p class="text-secondary small mb-2">
+          Virtual cycling apps automatically save your completed ride <code>.fit</code> files to local folders on your computer (e.g. <code>Documents\Zwift\Activities</code>).
+        </p>
+
+        <div class="alert alert-info py-2 mb-3 small">
+          <strong>ℹ️ What this command is doing:</strong>
+          The <code>mklink /J</code> command creates a <strong>live folder link (Directory Junction)</strong>. It connects your app's local activities folder directly into your Dropbox folder. Your files are not moved or duplicated on your hard drive, but Dropbox instantly sees any newly saved ride and syncs it to the bridge without you needing to drag or copy files.
+        </div>
+
+        <p class="text-secondary small mb-1 fw-semibold">Step-by-step setup:</p>
+        <ol class="text-secondary small mb-3">
+          <li>Install the official <strong>Dropbox Desktop App</strong> on your PC so you have a local <code>Dropbox</code> folder.</li>
+          <li>Open <strong>Command Prompt</strong> as Administrator (Search for <code>cmd</code> in the Start Menu, right-click, and select <strong>Run as administrator</strong>).</li>
+          <li>Run the command for your training application:</li>
+        </ol>
+
+        <div class="mb-3">
+          <label class="form-label text-dark fw-semibold small mb-1">Zwift:</label>
+          <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\Zwift" "%USERPROFILE%\Documents\Zwift\Activities"</code></pre>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-dark fw-semibold small mb-1">MyWhoosh:</label>
+          <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\MyWhoosh" "%USERPROFILE%\Documents\MyWhoosh"</code></pre>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-dark fw-semibold small mb-1">ROUVY:</label>
+          <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\Rouvy" "%USERPROFILE%\Documents\ROUVY"</code></pre>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-dark fw-semibold small mb-1">TrainingPeaks Virtual (indieVelo):</label>
+          <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\TPVirtual" "%USERPROFILE%\Documents\TrainingPeaks Virtual\Activities"</code></pre>
+        </div>
+
+        <div class="alert alert-success py-2 mb-0 small">
+          ✅ <strong>Done:</strong> As soon as you hit "End Ride" in your virtual app, Windows links the <code>.fit</code> file into Dropbox, the bridge detects it, converts the header to Garmin Edge 1040 (with virtual activity tagging preserved), and uploads it to Garmin Connect!
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- macOS Guide -->
+  <div class="col-12">
+    <div class="card border">
+      <div class="card-header bg-body-tertiary fw-bold">
+        🍎 Mac / macOS Setup (Zwift / MyWhoosh)
+      </div>
+      <div class="card-body">
+        <p class="text-secondary small mb-2">
+          On macOS, virtual training apps save <code>.fit</code> files to your user <code>Documents</code> folder (e.g. <code>~/Documents/Zwift/Activities/</code>).
+        </p>
+
+        <div class="alert alert-info py-2 mb-3 small">
+          <strong>ℹ️ What this command is doing:</strong>
+          The <code>ln -s</code> command creates a <strong>symbolic link (live folder alias)</strong> between the app's local activity folder and your Dropbox sync folder. Every new ride file is automatically seen by Dropbox and uploaded by the bridge without manual file copying.
+        </div>
+
+        <p class="text-secondary small mb-1 fw-semibold">Step-by-step setup:</p>
+        <ol class="text-secondary small mb-3">
+          <li>Install the official <strong>Dropbox Desktop App</strong> for Mac.</li>
+          <li>Open the <strong>Terminal</strong> app (press <code>Cmd + Space</code>, type <code>Terminal</code>, and hit Enter).</li>
+          <li>Run the command for your training application:</li>
+        </ol>
+
+        <div class="mb-3">
+          <label class="form-label text-dark fw-semibold small mb-1">Zwift:</label>
+          <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>ln -s ~/Documents/Zwift/Activities ~/Dropbox/Apps/WahooFitness/Zwift</code></pre>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-dark fw-semibold small mb-1">MyWhoosh:</label>
+          <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>ln -s ~/Documents/MyWhoosh ~/Dropbox/Apps/WahooFitness/MyWhoosh</code></pre>
+        </div>
+
+        <div class="alert alert-success py-2 mb-0 small">
+          ✅ <strong>Done:</strong> Any virtual ride finished on your Mac automatically syncs straight into Dropbox and uploads to Garmin Connect.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hammerhead Karoo -->
+  <div class="col-12">
+    <div class="card border">
+      <div class="card-header bg-body-tertiary fw-bold">
+        🚴 Hammerhead Karoo (1, 2, 3) Setup
+      </div>
+      <div class="card-body">
+        <p class="text-secondary small mb-2">
+          Because Karoo runs on Android, it saves completed ride <code>.fit</code> files to <code>/sdcard/FitFiles/</code>.
+        </p>
+        <p class="text-secondary small mb-1 fw-semibold">Automatic Wi-Fi Folder Sync via Dropsync:</p>
+        <ol class="text-secondary small mb-3">
+          <li>
+            Install <strong><a href="https://play.google.com/store/apps/details?id=com.ttxapps.dropsync&hl=en_GB" target="_blank" rel="noopener" class="text-primary fw-semibold">Dropsync (Autosync for Dropbox) on Google Play ↗</a></strong> (or sideload its APK onto your Karoo).
+          </li>
+          <li>Open Dropsync and link your <strong>Dropbox</strong> account.</li>
+          <li>Set up the <strong>Sync Folder Pair</strong>:
+            <ul class="mt-1">
+              <li><strong>Local device folder</strong>: <code>/sdcard/FitFiles/</code></li>
+              <li><strong>Remote Dropbox folder</strong>: <code>Apps/WahooFitness/Karoo</code> (or <code>Apps/WahooFitness</code>)</li>
+              <li><strong>Sync method</strong>: <code>Upload only</code></li>
+              <li><strong>Sync trigger</strong>: Automatic when connected to Wi-Fi.</li>
+            </ul>
+          </li>
+        </ol>
+        <div class="alert alert-info py-2 mb-0 small">
+          💡 <strong>Done:</strong> When you finish an outdoor ride and Karoo connects to your home Wi-Fi or phone hotspot, Dropsync immediately uploads the Karoo <code>.fit</code> file to Dropbox. The bridge processes it and uploads to Garmin Connect as a Garmin Edge 1040 activity!
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COROS Setup -->
+  <div class="col-12">
+    <div class="card border">
+      <div class="card-header bg-body-tertiary fw-bold">
+        ⌚ COROS (Watches & DURA Bike Computers) Setup
+      </div>
+      <div class="card-body">
+        <h6 class="fw-semibold text-dark small mb-1">Native Cloud-to-Cloud Sync (Recommended):</h6>
+        <p class="text-secondary small mb-2">
+          The bridge includes a direct <strong>COROS Cloud API Source</strong> that connects straight to your COROS account in the background:
+        </p>
+        <ol class="text-secondary small mb-3">
+          <li>Go to <a href="/config" class="fw-semibold text-primary">Config</a> and toggle on <strong>COROS Cloud</strong>.</li>
+          <li>Enter your COROS account email and password, select your account region, and click <strong>Save COROS profile</strong>.</li>
+          <li>Click <strong>Test COROS login</strong> to verify connection.</li>
+        </ol>
+        <div class="alert alert-success py-2 mb-3 small">
+          ✅ <strong>Done:</strong> The moment your COROS watch or DURA finishes syncing to the COROS app on your phone, the bridge automatically detects the new workout, downloads the <code>.fit</code> file, rewrites the device header, and pushes it to Garmin Connect!
+        </div>
+
+        <h6 class="fw-semibold text-dark small mb-1">Alternative Manual 1-Tap Share from COROS App:</h6>
+        <p class="text-secondary small mb-0">
+          Open any activity in the COROS phone app ➔ tap <strong>Share</strong> ➔ <strong>Export Data</strong> ➔ <strong>FIT</strong> ➔ save to Dropbox (<code>Apps/WahooFitness/COROS</code>).
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Local Folder Watcher -->
+  <div class="col-12">
+    <div class="card border">
+      <div class="card-header bg-body-tertiary fw-bold">
+        📁 Local Folder Watcher (NAS / Local Server)
+      </div>
+      <div class="card-body">
+        <p class="text-secondary small mb-2">
+          If you prefer not to use cloud accounts and run the bridge on a home server (Unraid, Synology, TrueNAS), map any local network directory directly to <code>/data/incoming</code> in Docker:
+        </p>
+        <pre class="bg-dark text-light p-2 rounded small mb-0"><code>volumes:
+  - /path/to/my/fit_folder:/data/incoming
+  - ./data:/data
+  - ./appdata:/appdata</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Garmin Two-Factor Authentication (MFA) & CLI Setup -->
+  <div class="col-12">
+    <div class="card border">
+      <div class="card-header bg-body-tertiary fw-bold">
+        🔐 Garmin Two-Factor Authentication (MFA) & Terminal Login
+      </div>
+      <div class="card-body">
+        <p class="text-secondary small mb-2">
+          If your Garmin account has 2-Factor Authentication (2FA) enabled or if you are running the bridge on a cloud server/VPS, Garmin may send a 6-digit one-time code to your email when authenticating.
+        </p>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="p-3 border rounded bg-body-secondary h-100">
+              <h6 class="fw-semibold text-body mb-1">Option 1: Web Browser UI</h6>
+              <p class="text-body-secondary small mb-0">
+                In <strong>Config ➔ Garmin Upload</strong>, enter your Garmin email & password. If Garmin requires MFA, a verification box will appear asking for the 6-digit code sent to your email. Enter it and click <strong>Verify & Complete Setup</strong>.
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="p-3 border rounded bg-body-secondary h-100">
+              <h6 class="fw-semibold text-body mb-1">Option 2: Terminal / Docker CLI Login</h6>
+              <p class="text-body-secondary small mb-2">
+                If you prefer to log in interactively from the command line on your server, run:
+              </p>
+              <pre class="bg-dark text-light p-2 rounded small mb-0 user-select-all"><code>docker compose run --rm -it bridge wahoo-bridge-garmin-login</code></pre>
+            </div>
+          </div>
+        </div>
+        <div class="alert alert-info py-2 px-3 mt-3 mb-0 small">
+          ℹ️ <strong>Note:</strong> Once your Garmin session token is saved to <code>/appdata/garmin/tokens</code>, the bridge automatically refreshes it in the background. You do not need to re-enter MFA codes for subsequent uploads.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Open Source & Support -->
+  <div class="col-12 text-center py-3">
+    <div class="card border bg-body-secondary p-4">
+      <h5 class="fw-bold mb-2">⭐ Open Source & Community Support</h5>
+      <p class="text-body-secondary small mb-3">
+        FIT to Garmin Bridge is open source and community-driven. If you find it useful, consider starring the repo or supporting ongoing development!
+      </p>
+      <div class="d-flex justify-content-center gap-3 flex-wrap">
+        <a href="https://github.com/ntrance/wahoo-garmin-fit-bridge" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-github" viewBox="0 0 16 16">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
+          </svg>
+          <span>Star on GitHub</span>
+        </a>
+        <a href="https://ko-fi.com/ntr4nce" target="_blank" rel="noopener noreferrer" class="btn btn-sm text-white fw-semibold d-inline-flex align-items-center gap-2 shadow-sm" style="background-color: #FF5E5B; border: 1px solid #e04b48;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.047 3.974-4.047 3.974s-2.7-2.486-3.96-3.974c-1.306-1.546-1.12-3.649.336-4.537 1.455-.889 3.25.132 3.624.814.374-.682 2.169-1.703 3.624-.814 1.456.888 1.642 2.991.423 4.537zm3.625-2.222c-.104 1.643-1.077 2.668-2.316 2.879.034-.693-.058-1.378-.31-2.008-.636-1.587-2.027-2.677-3.625-3.033.003-.004.006-.007.01-.011h6.241v2.173z"/>
+          </svg>
+          <span>Support on Ko-fi</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

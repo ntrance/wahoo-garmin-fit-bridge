@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from app.garmin_profile import GarminProfile, garmin_token_dir, load_garmin_profile
 from app.garmin_guard import (
@@ -95,24 +97,113 @@ def run_garmin_upload(
         )
 
 
+@dataclass
+class GarminMFAPending:
+    client: Any
+    username: str
+    token_dir: Path
+    created_at: float = 0.0
+
+    def __post_init__(self) -> None:
+        if not self.created_at:
+            self.created_at = time.time()
+
+
+def start_garmin_session_login(
+    settings: Settings,
+    username: str,
+    password: str,
+) -> tuple[bool, str, GarminMFAPending | None]:
+    cooldown = active_garmin_cooldown(settings)
+    if cooldown is not None:
+        return False, str(cooldown["message"]), None
+
+    if not username.strip() or not password:
+        return False, "Garmin username and password are required.", None
+
+    token_dir = garmin_token_dir(settings)
+    token_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        from garminconnect import Garmin
+
+        client = Garmin(
+            email=username.strip(),
+            password=password,
+            return_on_mfa=True,
+        )
+        mfa_status, _ = client.login(tokenstore=str(token_dir))
+        if mfa_status:
+            return (
+                True,
+                "MFA_REQUIRED",
+                GarminMFAPending(client=client, username=username.strip(), token_dir=token_dir),
+            )
+        return (
+            True,
+            f"Garmin session created and saved to {token_dir}. Uploads can now reuse this token.",
+            None,
+        )
+    except Exception as exc:
+        output = redact_output(str(exc), settings)
+        if detects_garmin_rate_limit(output):
+            record_garmin_rate_limit(settings, output)
+        return False, friendly_upload_error(output, 1), None
+
+
+def complete_garmin_mfa_session(
+    pending: GarminMFAPending,
+    mfa_code: str,
+    settings: Settings,
+) -> tuple[bool, str]:
+    if not mfa_code or not mfa_code.strip():
+        return False, "Verification code cannot be empty."
+
+    try:
+        pending.client.client._complete_mfa(mfa_code.strip())
+        pending.client._load_profile_and_settings()
+        pending.token_dir.mkdir(parents=True, exist_ok=True)
+        pending.client.client.dump(str(pending.token_dir))
+        return (
+            True,
+            f"Garmin two-factor authentication successful! Session tokens saved to {pending.token_dir}.",
+        )
+    except Exception as exc:
+        output = redact_output(str(exc), settings)
+        if detects_garmin_rate_limit(output):
+            record_garmin_rate_limit(settings, output)
+        return False, f"Garmin MFA verification failed: {friendly_upload_error(output, 1)}"
+
+
 def create_garmin_session(settings: Settings) -> GarminUploadResult:
     cooldown = active_garmin_cooldown(settings)
     if cooldown is not None:
         return GarminUploadResult(False, "", str(cooldown["message"]), 75)
     try:
         profile = _load_profile(settings)
-        _, token_dir = _login_garmin_with_profile(settings, profile)
+        ok, message, pending = start_garmin_session_login(
+            settings,
+            getattr(profile, "garmin_username", ""),
+            getattr(profile, "garmin_password", ""),
+        )
+        if pending is not None:
+            return GarminUploadResult(
+                True,
+                "Garmin requested a two-factor verification code. Enter the code sent to your email.",
+                "",
+                0,
+            )
+        return GarminUploadResult(
+            ok,
+            message if ok else "",
+            "" if ok else message,
+            0 if ok else 1,
+        )
     except Exception as exc:
         output = redact_output(str(exc), settings)
         if detects_garmin_rate_limit(output):
             record_garmin_rate_limit(settings, output)
         return GarminUploadResult(False, "", friendly_upload_error(output, 1), 1)
-    return GarminUploadResult(
-        True,
-        f"Garmin session created and saved to {token_dir}. Uploads can now reuse this token.",
-        "",
-        0,
-    )
 
 
 def _load_profile(settings: Settings) -> GarminProfile:
@@ -221,6 +312,12 @@ def _rewrite_wahoo_fit(
             if message_number == 0:
                 insert_after = index
 
+        is_virtual = any(
+            (message_number == 0 and message.get("manufacturer") in {206, 294, 300})
+            or (message_number in {18, 12} and message.get("sub_sport") in {27, "virtual_activity"})
+            for message_number, message in ordered_messages
+        )
+
         encoder = Encoder()
         changed = 0
         written = 0
@@ -232,6 +329,9 @@ def _rewrite_wahoo_fit(
             clean_message = {
                 key: value for key, value in message.items() if key != "developer_fields"
             }
+            if is_virtual and message_number in {18, 12}:
+                clean_message["sub_sport"] = "virtual_activity"
+                changed += 1
             if message_number == 0:
                 clean_message["type"] = clean_message.get("type") or "activity"
                 clean_message["manufacturer"] = manufacturer

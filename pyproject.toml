@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wahoo-garmin-fit-bridge"
-version = "1.1.0"
-description = "Automatic Wahoo and iGPSPORT FIT activity sync to Garmin Connect"
+version = "1.2.0"
+description = "Multi-platform FIT activity sync to Garmin Connect (Wahoo, iGPSPORT, COROS, Hammerhead Karoo, Zwift, MyWhoosh)"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",
@@ -28,6 +28,7 @@ dev = [
 
 [project.scripts]
 wahoo-bridge-hash-password = "app.security_cli:main"
+wahoo-bridge-garmin-login = "app.garmin_cli:main"
 
 
 [tool.setuptools.packages.find]

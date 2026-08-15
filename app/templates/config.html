@@ -44,10 +44,12 @@
 {% set dropbox_ready = (not settings.dropbox_source_enabled) or setup.dropbox.configured %}
 {% set igpsport_configured = igpsport_profile.username and igpsport_profile.password_saved %}
 {% set igpsport_ready = (not settings.igpsport_source_enabled) or igpsport_configured %}
-{% set connections_complete = dropbox_ready and igpsport_ready and setup.garmin.configured %}
-<details class="config-accordion border rounded mb-4" {{ "open" if settings.dry_run or not connections_complete else "" }}>
+{% set coros_configured = coros_profile.username and coros_profile.password_saved %}
+{% set coros_ready = (not settings.coros_source_enabled) or coros_configured %}
+{% set connections_complete = dropbox_ready and igpsport_ready and coros_ready and setup.garmin.configured %}
+<details id="section-connection-settings" class="config-accordion border rounded mb-4" {{ "open" if settings.dry_run or not connections_complete else "" }}>
   <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
-    <h2 class="h5 mb-0">Connection Settings</h2>
+    <h2 class="h5 mb-0">Platform & Device Connection Settings</h2>
     <span class="d-flex align-items-center justify-content-end gap-2 flex-wrap">
       <span class="badge {{ 'text-bg-success' if connections_complete else 'text-bg-warning' }}">
         {{ "Setup complete" if connections_complete else "Setup incomplete" }}
@@ -67,6 +69,14 @@
         aria-live="polite"
       >
         iGPSPORT: {{ "Disabled" if not settings.igpsport_source_enabled else ("Ready" if igpsport_configured else "Needs setup") }}
+      </span>
+      <span
+        class="badge {{ 'text-bg-danger' if not settings.coros_source_enabled else ('text-bg-success' if coros_configured else 'text-bg-warning') }}"
+        id="coros-status-pill"
+        data-configured="{{ 'true' if coros_configured else 'false' }}"
+        aria-live="polite"
+      >
+        COROS: {{ "Disabled" if not settings.coros_source_enabled else ("Ready" if coros_configured else "Needs setup") }}
       </span>
       <span class="badge {{ 'text-bg-success' if setup.garmin.configured else 'text-bg-warning' }}">
         Garmin: {{ "Configured" if setup.garmin.configured else "Needs setup" }}
@@ -91,53 +101,82 @@
       {% if settings.igpsport_source_enabled and not igpsport_configured %}
       <span class="d-block">iGPSPORT Cloud still needs to be configured.</span>
       {% endif %}
+      {% if settings.coros_source_enabled and not coros_configured %}
+      <span class="d-block">COROS Cloud still needs to be configured.</span>
+      {% endif %}
       {% if not setup.garmin.configured %}
       <span class="d-block">Garmin Upload still needs to be configured.</span>
       {% endif %}
     </div>
     {% endif %}
-    <div class="row g-3">
-      <div class="col-md-4">
-        <label class="form-label" for="rclone_remote">Dropbox remote</label>
-        <input class="form-control" id="rclone_remote" name="rclone_remote" value="{{ setup.dropbox.remote }}">
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3">
+      <div class="col">
+        <label class="form-label text-sm fw-semibold" for="rclone_remote">Dropbox Remote</label>
+        <input class="form-control form-control-sm" id="rclone_remote" name="rclone_remote" value="{{ setup.dropbox.remote }}">
       </div>
-      <div class="col-md-8">
-        <label class="form-label" for="dropbox_wahoo_path">Wahoo Dropbox path</label>
-        <input class="form-control" id="dropbox_wahoo_path" name="dropbox_wahoo_path" value="{{ setup.dropbox.path }}">
+      <div class="col">
+        <label class="form-label text-sm fw-semibold" for="dropbox_wahoo_path">Wahoo Dropbox Path</label>
+        <input class="form-control form-control-sm" id="dropbox_wahoo_path" name="dropbox_wahoo_path" value="{{ setup.dropbox.path }}">
       </div>
-      <div class="col-md-4">
-        <label class="form-label" for="garmin_profile_name">Garmin profile</label>
-        <input class="form-control" id="garmin_profile_name" name="garmin_profile_name" value="{{ setup.garmin.profile }}">
+      <div class="col">
+        <label class="form-label text-sm fw-semibold" for="dropbox_poll_seconds">Dropbox Poll (seconds)</label>
+        <input class="form-control form-control-sm" id="dropbox_poll_seconds" name="dropbox_poll_seconds" type="number" min="10" value="{{ settings.dropbox_poll_seconds }}">
       </div>
-      <div class="col-md-8">
-        <label class="form-label" for="garmin_unit_id">Garmin Unit ID</label>
-        <input class="form-control" id="garmin_unit_id" name="garmin_unit_id" value="{{ settings.garmin_unit_id }}" autocomplete="off">
+      <div class="col">
+        <label class="form-label text-sm fw-semibold" for="garmin_profile_name">Garmin Profile</label>
+        <input class="form-control form-control-sm" id="garmin_profile_name" name="garmin_profile_name" value="{{ setup.garmin.profile }}">
       </div>
+      <div class="col">
+        <label class="form-label text-sm fw-semibold" for="garmin_unit_id">Garmin Unit ID</label>
+        <input class="form-control form-control-sm" id="garmin_unit_id" name="garmin_unit_id" value="{{ settings.garmin_unit_id }}" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="row g-3 mt-1">
       <div class="col-12">
-        <div class="form-check form-switch mb-2">
-          <input class="form-check-input" type="checkbox" id="dropbox_source_enabled" name="dropbox_source_enabled" {{ "checked" if settings.dropbox_source_enabled else "" }}>
-          <label class="form-check-label" for="dropbox_source_enabled">Wahoo/ELEMNT via Dropbox</label>
-        </div>
-        <div class="form-check form-switch mb-3">
-          <input class="form-check-input" type="checkbox" id="igpsport_source_enabled" name="igpsport_source_enabled" {{ "checked" if settings.igpsport_source_enabled else "" }}>
-          <label class="form-check-label" for="igpsport_source_enabled">iGPSPORT Cloud</label>
+        <label class="form-label text-sm fw-semibold text-body mb-1">Platform Source Toggles & Mode:</label>
+        <div class="d-flex flex-wrap gap-4 align-items-center p-2 rounded bg-body-secondary border">
+          <div class="form-check form-switch m-0">
+            <input class="form-check-input" type="checkbox" id="dropbox_source_enabled" name="dropbox_source_enabled" {{ "checked" if settings.dropbox_source_enabled else "" }}>
+            <label class="form-check-label text-sm fw-medium" for="dropbox_source_enabled">Wahoo / ELEMNT (Dropbox)</label>
+          </div>
+          <div class="form-check form-switch m-0">
+            <input class="form-check-input" type="checkbox" id="igpsport_source_enabled" name="igpsport_source_enabled" {{ "checked" if settings.igpsport_source_enabled else "" }}>
+            <label class="form-check-label text-sm fw-medium" for="igpsport_source_enabled">iGPSPORT Cloud</label>
+          </div>
+          <div class="form-check form-switch m-0">
+            <input class="form-check-input" type="checkbox" id="coros_source_enabled" name="coros_source_enabled" {{ "checked" if settings.coros_source_enabled else "" }}>
+            <label class="form-check-label text-sm fw-medium" for="coros_source_enabled">COROS Cloud (Watches & DURA)</label>
+          </div>
+          <div class="form-check form-switch m-0 ms-auto border-start ps-4">
+            <input class="form-check-input" type="checkbox" id="dry_run" name="dry_run" {{ "checked" if settings.dry_run else "" }}>
+            <label class="form-check-label text-sm fw-medium text-warning-emphasis" for="dry_run">Dry-run mode</label>
+          </div>
         </div>
       </div>
-      {% if settings.dropbox_source_enabled %}
-      <div class="col-md-6">
-        <label class="form-label" for="dropbox_poll_seconds">Dropbox polling interval (seconds)</label>
-        <input class="form-control" id="dropbox_poll_seconds" name="dropbox_poll_seconds" type="number" min="10" value="{{ settings.dropbox_poll_seconds }}">
-      </div>
-      {% endif %}
-      {% if settings.igpsport_source_enabled %}
-      <div class="col-md-6">
-        <label class="form-label" for="igpsport_poll_seconds">iGPSPORT polling interval (seconds)</label>
-        <input class="form-control" id="igpsport_poll_seconds" name="igpsport_poll_seconds" type="number" min="{{ settings.igpsport_min_poll_seconds }}" value="{{ settings.igpsport_poll_seconds }}">
-        <div class="form-text">Automatic cloud polling cannot run more often than every {{ settings.igpsport_min_poll_seconds }} seconds.</div>
+
+      {% if settings.igpsport_source_enabled or settings.coros_source_enabled %}
+      <div class="col-12">
+        <div class="row g-3">
+          {% if settings.igpsport_source_enabled %}
+          <div class="col-md-6">
+            <label class="form-label text-sm fw-semibold" for="igpsport_poll_seconds">iGPSPORT Poll Interval (seconds)</label>
+            <input class="form-control form-control-sm" id="igpsport_poll_seconds" name="igpsport_poll_seconds" type="number" min="{{ settings.igpsport_min_poll_seconds }}" value="{{ settings.igpsport_poll_seconds }}">
+            <div class="form-text text-xs">Min: {{ settings.igpsport_min_poll_seconds }}s</div>
+          </div>
+          {% endif %}
+          {% if settings.coros_source_enabled %}
+          <div class="col-md-6">
+            <label class="form-label text-sm fw-semibold" for="coros_poll_seconds">COROS Poll Interval (seconds)</label>
+            <input class="form-control form-control-sm" id="coros_poll_seconds" name="coros_poll_seconds" type="number" min="{{ settings.coros_min_poll_seconds }}" value="{{ settings.coros_poll_seconds }}">
+            <div class="form-text text-xs">Min: {{ settings.coros_min_poll_seconds }}s</div>
+          </div>
+          {% endif %}
+        </div>
       </div>
       {% endif %}
       <div class="col-12 mt-3">
-        <div class="border rounded p-3 bg-light">
+        <div class="border rounded p-3 bg-body-secondary">
           <h6 class="fw-bold mb-2">⚡ Smart Time-Window Polling & Resource Management</h6>
           <p class="text-muted small mb-3">
             Configure dynamic background polling windows to concentrate sync checks during peak ride hours while conserving CPU, disk write cycles, and cloud API limits overnight.
@@ -167,7 +206,7 @@
               </small>
             </div>
             <div class="col-md-6 d-flex align-items-end">
-              <div class="p-2 border rounded bg-white w-100 text-sm">
+              <div class="p-2 border rounded bg-body w-100 text-sm">
                 <span class="text-muted d-block mb-1">Current System Local Time:</span>
                 <strong class="text-primary fs-6">{{ status.local_time_formatted if status else "" }}</strong>
               </div>
@@ -220,13 +259,6 @@
           </div>
         </div>
       </div>
-
-      <div class="col-12">
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" id="dry_run" name="dry_run" {{ "checked" if settings.dry_run else "" }}>
-          <label class="form-check-label" for="dry_run">Dry-run mode</label>
-        </div>
-      </div>
     </div>
     <div class="mt-3">
       <button class="btn btn-primary" type="submit">Save Settings</button>
@@ -235,35 +267,57 @@
 </details>
 
 <div class="mb-4">
-  <details class="config-accordion border rounded mb-3" open>
+  <details id="section-activity-sources" class="config-accordion border rounded mb-3" open>
     <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
-      <h2 class="h5 mb-0">Activity Sources</h2>
-      <span class="badge text-bg-secondary">{{ source_statuses|selectattr("enabled")|list|length }} enabled</span>
+      <h2 class="h5 mb-0">Activity Source Settings & Live Status</h2>
+      <span class="d-flex align-items-center justify-content-end gap-2 flex-wrap">
+        {% for src in source_statuses %}
+        <span class="badge {{ 'text-bg-success' if src.enabled else 'text-bg-secondary' }}">
+          {{ src.display_name }}: {{ "Active" if src.enabled else "Disabled" }}
+        </span>
+        {% endfor %}
+        <span class="badge text-bg-primary">{{ source_statuses|selectattr("enabled")|list|length }} of {{ source_statuses|length }} active</span>
+      </span>
     </summary>
     <div class="border-top p-3">
-      <form method="post" action="/config/sources/sync" class="mb-3">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button class="btn btn-primary btn-sm" type="submit">Sync all enabled sources now</button>
-      </form>
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div class="text-muted small">
+          Live sync status, background polling schedule, and manual triggers for all supported activity platforms. To activate or deactivate a platform, toggle its switch in <a href="#section-connection-settings" class="fw-semibold">Platform & Device Connection Settings</a> above.
+        </div>
+        {% if source_statuses|selectattr("enabled")|list|length > 0 %}
+        <form method="post" action="/config/sources/sync" class="m-0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-primary btn-sm" type="submit">Sync all active sources now</button>
+        </form>
+        {% endif %}
+      </div>
       <div class="row g-3">
-        {% for source in source_statuses if source.enabled %}
+        {% for source in source_statuses %}
         <div class="col-12">
-          <div class="border rounded p-3">
-            <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+          {% if source.enabled %}
+          <div class="border border-success-subtle rounded p-3 bg-body-secondary shadow-sm">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-2 flex-wrap">
               <div>
-                <h3 class="h6 mb-1">{{ source.display_name }}</h3>
-                <span class="badge {{ 'text-bg-success' if source.enabled else 'text-bg-secondary' }}">{{ "Enabled" if source.enabled else "Disabled" }}</span>
+                <h3 class="h6 mb-1 fw-bold text-body">{{ source.display_name }}</h3>
+                <span class="badge text-bg-success">Active / Enabled</span>
                 <span class="badge {{ 'text-bg-success' if source.configured else 'text-bg-warning' }}">{{ "Configured" if source.configured else "Needs setup" }}</span>
               </div>
-              <div class="d-flex gap-2">
-                <form method="post" action="/config/source/{{ source.source_type }}/test">
+              <div class="d-flex gap-2 flex-wrap">
+                <form method="post" action="/config/source/{{ source.source_type }}/test" class="m-0">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <button class="btn btn-outline-primary btn-sm" type="submit">Test connection</button>
                 </form>
-                <form method="post" action="/config/source/{{ source.source_type }}/sync">
+                <form method="post" action="/config/source/{{ source.source_type }}/sync" class="m-0">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                  <button class="btn btn-outline-primary btn-sm" type="submit" {{ "disabled" if not source.enabled else "" }}>Sync now</button>
+                  <button class="btn btn-outline-primary btn-sm" type="submit">Sync now</button>
                 </form>
+                {% if source.source_type == 'dropbox' %}
+                <a href="#section-dropbox" class="btn btn-outline-secondary btn-sm">Dropbox OAuth ↓</a>
+                {% elif source.source_type == 'igpsport' %}
+                <a href="#section-igpsport" class="btn btn-outline-secondary btn-sm">iGPSPORT Profile ↓</a>
+                {% elif source.source_type == 'coros' %}
+                <a href="#section-coros" class="btn btn-outline-secondary btn-sm">COROS Profile ↓</a>
+                {% endif %}
               </div>
             </div>
             <dl class="row small mb-0">
@@ -283,6 +337,30 @@
               {% endif %}
             </dl>
           </div>
+          {% else %}
+          <div class="border rounded p-3 bg-body-secondary opacity-75">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-2 flex-wrap">
+              <div>
+                <h3 class="h6 mb-1 text-muted">{{ source.display_name }}</h3>
+                <span class="badge text-bg-secondary">Disabled</span>
+              </div>
+              <div>
+                <a href="#section-connection-settings" data-focus-target="{{ source.source_type }}_source_enabled" class="btn btn-outline-secondary btn-sm">Enable in Connection Settings ↑</a>
+              </div>
+            </div>
+            <p class="text-muted small mb-0">
+              {% if source.source_type == 'dropbox' %}
+              Watches Dropbox folder for Wahoo ELEMNT, Hammerhead Karoo (via Dropsync), Zwift, MyWhoosh, ROUVY, and TrainingPeaks Virtual FIT files.
+              {% elif source.source_type == 'igpsport' %}
+              Direct cloud-to-cloud API synchronization with iGPSPORT cycling computer accounts.
+              {% elif source.source_type == 'coros' %}
+              Direct cloud-to-cloud API synchronization with COROS accounts (Watches & DURA bike computers).
+              {% else %}
+              Activity source integration.
+              {% endif %}
+            </p>
+          </div>
+          {% endif %}
         </div>
         {% endfor %}
       </div>
@@ -290,7 +368,7 @@
   </details>
 
   {% if settings.igpsport_source_enabled %}
-  <details class="config-accordion border rounded mb-3" {{ "open" if not igpsport_configured else "" }}>
+  <details id="section-igpsport" class="config-accordion border rounded mb-3" {{ "open" if not igpsport_configured else "" }}>
     <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
       <h2 class="h5 mb-0">iGPSPORT Cloud</h2>
       <span class="badge {{ 'text-bg-success' if igpsport_configured else 'text-bg-warning' }}">
@@ -389,7 +467,83 @@
   </details>
   {% endif %}
 
-  <details class="config-accordion border rounded mb-3" {{ "open" if dropbox_oauth or not setup.dropbox.configured else "" }}>
+  {% if settings.coros_source_enabled %}
+  <details id="section-coros" class="config-accordion border rounded mb-3" {{ "open" if not coros_configured else "" }}>
+    <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
+      <h2 class="h5 mb-0">COROS Cloud (Watches & DURA)</h2>
+      <span class="badge {{ 'text-bg-success' if coros_configured else 'text-bg-warning' }}">
+        {{ "Configured" if coros_configured else "Needs setup" }}
+      </span>
+    </summary>
+    <div class="border-top p-3">
+      <div class="alert alert-info py-2 small">
+        Connect directly to your COROS account. The bridge securely authenticates with your COROS credentials, automatically fetches newly completed workouts, and converts them to Garmin Edge 1040 activities for seamless upload to Garmin Connect.
+      </div>
+      <form method="post" action="/config/coros/save" class="mb-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="coros_username">COROS Account Email</label>
+            <input class="form-control" id="coros_username" name="coros_username" value="{{ coros_profile.username or '' }}" autocomplete="username" placeholder="your-email@example.com">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="coros_password">Password</label>
+            <input class="form-control" id="coros_password" name="coros_password" type="password" autocomplete="current-password" placeholder="{{ 'Saved - leave blank to keep current password' if coros_configured else '' }}">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="coros_base_url">Account Region / Server</label>
+            <select class="form-select" id="coros_base_url" name="coros_base_url">
+              {% for region_key, region_label, region_url in coros_regions %}
+              <option value="{{ region_url }}" {{ "selected" if (coros_profile.base_url or settings.coros_base_url) == region_url else "" }}>
+                {{ region_label }}
+              </option>
+              {% endfor %}
+            </select>
+            <div class="form-text">
+              Select Americas / Global for international accounts, or Europe if your COROS account was registered in the EU.
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="coros_import_mode">Automatic import policy</label>
+            <select class="form-select" id="coros_import_mode" name="coros_import_mode">
+              <option value="new_only" {{ "selected" if (coros_profile.import_mode or settings.coros_import_mode) == "new_only" else "" }}>Only activities recorded after enabling COROS</option>
+              <option value="since_date" {{ "selected" if coros_profile.import_mode == "since_date" else "" }}>Activities since selected date</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="coros_cutoff_date">Import cutoff date</label>
+            <input class="form-control" id="coros_cutoff_date" name="coros_cutoff_date" type="date" value="{{ coros_profile.cutoff_date or '' }}">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm mt-3" type="submit">Save COROS profile</button>
+      </form>
+      <div class="d-flex gap-2 flex-wrap mb-3">
+        <form method="post" action="/config/source/coros/test">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-outline-primary btn-sm" type="submit">Test COROS login</button>
+        </form>
+        <form method="post" action="/config/source/coros/sync">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-outline-primary btn-sm" type="submit">Sync COROS now</button>
+        </form>
+        <form method="post" action="/config/coros/clear-session">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-outline-secondary btn-sm" type="submit">Clear saved session</button>
+        </form>
+      </div>
+      <form method="post" action="/config/coros/delete" class="border-top pt-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="form-label" for="coros_delete_confirm">Enter DELETE to remove the saved profile and session</label>
+        <div class="input-group">
+          <input class="form-control" id="coros_delete_confirm" name="confirm" autocomplete="off">
+          <button class="btn btn-outline-danger" type="submit">Delete profile</button>
+        </div>
+      </form>
+    </div>
+  </details>
+  {% endif %}
+
+  <details id="section-dropbox" class="config-accordion border rounded mb-3" {{ "open" if dropbox_oauth or not setup.dropbox.configured else "" }}>
     <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
       <h2 class="h5 mb-0">Dropbox</h2>
       <span class="d-flex align-items-center gap-2">
@@ -426,7 +580,7 @@
         <button class="btn btn-success btn-sm" type="submit">Start Dropbox Setup</button>
       </form>
       {% if dropbox_oauth %}
-      <div class="border rounded p-3 mb-3 bg-light">
+      <div class="border rounded p-3 mb-3 bg-body-secondary">
         <div class="mb-2">
           <strong>Step 1:</strong>
           <a href="{{ dropbox_oauth.authorization_url }}" target="_blank" rel="noopener">Open Dropbox authorization</a>
@@ -484,7 +638,7 @@
     </div>
   </details>
 
-  <details class="config-accordion border rounded" {{ "open" if setup.garmin.profile_error or setup.garmin.cooldown or not setup.garmin.configured else "" }}>
+  <details id="section-garmin" class="config-accordion border rounded" {{ "open" if setup.garmin.profile_error or setup.garmin.cooldown or not setup.garmin.configured else "" }}>
     <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
       <h2 class="h5 mb-0">Garmin Upload</h2>
       <span class="d-flex align-items-center gap-2">
@@ -495,8 +649,33 @@
     </summary>
     <div class="border-top p-3">
 
+      {% if garmin_mfa_pending %}
+      <div class="alert alert-warning border-warning p-3 mb-3 shadow-sm" id="garmin-mfa-box">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="fs-5">🔐</span>
+          <h4 class="h6 fw-bold mb-0 text-dark">Garmin Two-Factor Authentication (MFA) Required</h4>
+        </div>
+        <p class="small text-dark mb-3">
+          Garmin Connect sent a 6-digit one-time verification code to the email or SMS on file for <strong>{{ garmin_mfa_username or setup.garmin.username }}</strong>.
+          Enter the code below to complete setup and save your session tokens:
+        </p>
+        <form method="post" action="/config/garmin/mfa/complete" class="row g-2 align-items-center">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="col-sm-5 col-md-4">
+            <input class="form-control" name="mfa_code" placeholder="Enter 6-digit code (e.g. 123456)" autocomplete="one-time-code" autofocus required>
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-primary" type="submit">Verify & Complete Setup</button>
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-outline-secondary" type="submit" formaction="/config/garmin/mfa/cancel">Cancel</button>
+          </div>
+        </form>
+      </div>
+      {% endif %}
+
       {% if setup.garmin.configured %}
-      <div class="border rounded p-3 mb-3 bg-light">
+      <div class="border rounded p-3 mb-3 bg-body-secondary">
         <div class="row g-2">
           <div class="col-md-6">
             <div class="text-secondary small">Connected Garmin account</div>
@@ -577,11 +756,11 @@
 
         <button class="btn btn-primary" type="submit">Save Garmin Setup</button>
 
-        <details class="mt-4 border rounded p-3 bg-light">
+        <details class="mt-4 border rounded p-3 bg-body-secondary">
           <summary class="fw-semibold text-secondary cursor-pointer">Advanced Device Customization (Scan Real FIT or Edit Raw IDs)</summary>
           <div class="mt-3">
             <p class="text-muted small">If you own a physical Garmin device and want activities to match its exact hardware IDs, upload a genuine <code>.fit</code> file from that device or edit the fields below.</p>
-            <div class="border rounded p-3 mb-3 bg-white">
+            <div class="border rounded p-3 mb-3 bg-body">
               <div class="fw-semibold mb-1">Scan Genuine Garmin FIT File</div>
               <input class="form-control form-control-sm mb-2" id="real_fit_file" name="real_fit_file" type="file" accept=".fit" form="upload_real_fit_form">
               <button class="btn btn-outline-primary btn-sm" type="submit" form="upload_real_fit_form">Upload and Scan FIT File</button>
@@ -631,7 +810,11 @@
           </div>
         </form>
         {% endif %}
-        <div class="small text-secondary">Upload path: the native Wahoo converter applies the selected Garmin device identity, then uploads through Garmin Connect using the token folder below.</div>
+        <div class="small text-secondary mb-2">Upload path: the native Wahoo converter applies the selected Garmin device identity, then uploads through Garmin Connect using the token folder below.</div>
+        <div class="border rounded p-2 bg-body-secondary text-secondary small">
+          💡 <strong>MFA & Terminal Users:</strong> If your account has 2FA enabled, the web UI will prompt you for the verification code. Alternatively, you can log in interactively in terminal via:
+          <pre class="bg-dark text-light p-2 rounded small mt-1 mb-0 user-select-all"><code>docker compose run --rm -it bridge wahoo-bridge-garmin-login</code></pre>
+        </div>
       </div>
       <dl class="mb-3 small">
         <dt>Config folder</dt>
@@ -649,35 +832,37 @@
   </details>
 </div>
 
-<section class="border rounded p-3 mb-4">
-  <div class="d-flex justify-content-between align-items-center mb-2">
+<details id="section-web-security" class="config-accordion border rounded mb-3">
+  <summary class="d-flex justify-content-between align-items-center gap-3 p-3">
     <h2 class="h5 mb-0">Web Security</h2>
     <span class="badge {{ 'text-bg-success' if settings.web_auth_enabled else 'text-bg-warning' }}">
       {{ "Protected" if settings.web_auth_enabled else "Open" }}
     </span>
+  </summary>
+  <div class="border-top p-3">
+    <div class="row g-3">
+      <div class="col-md-3 col-sm-6">
+        <div class="text-secondary small">Password storage</div>
+        <div>{{ "Hashed" if settings.web_password_hash else "Plain .env fallback" }}</div>
+      </div>
+      <div class="col-md-3 col-sm-6">
+        <div class="text-secondary small">Session cookie</div>
+        <div>{{ "Secure HTTPS only" if settings.session_cookie_secure else "Local HTTP allowed" }}</div>
+      </div>
+      <div class="col-md-3 col-sm-6">
+        <div class="text-secondary small">Session lifetime</div>
+        <div>{{ settings.session_max_age_seconds }} seconds</div>
+      </div>
+      <div class="col-md-3 col-sm-6">
+        <div class="text-secondary small">Login limit</div>
+        <div>{{ settings.login_rate_limit_attempts }} attempts</div>
+      </div>
+    </div>
+    <div class="mt-3 small text-muted">
+      Hash passwords with: <code>docker compose run --rm bridge wahoo-bridge-hash-password</code>
+    </div>
   </div>
-  <div class="row g-3">
-    <div class="col-md-3">
-      <div class="text-secondary small">Password storage</div>
-      <div>{{ "Hashed" if settings.web_password_hash else "Plain .env fallback" }}</div>
-    </div>
-    <div class="col-md-3">
-      <div class="text-secondary small">Session cookie</div>
-      <div>{{ "Secure HTTPS only" if settings.session_cookie_secure else "Local HTTP allowed" }}</div>
-    </div>
-    <div class="col-md-3">
-      <div class="text-secondary small">Session lifetime</div>
-      <div>{{ settings.session_max_age_seconds }} seconds</div>
-    </div>
-    <div class="col-md-3">
-      <div class="text-secondary small">Login limit</div>
-      <div>{{ settings.login_rate_limit_attempts }} attempts</div>
-    </div>
-  </div>
-  <div class="mt-3">
-    <code>docker compose run --rm bridge wahoo-bridge-hash-password</code>
-  </div>
-</section>
+</details>
 
 <details class="config-accordion border rounded mb-4">
   <summary class="d-flex justify-content-between align-items-center gap-3 p-3">

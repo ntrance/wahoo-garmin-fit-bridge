@@ -14,6 +14,13 @@ IGPSPORT_REGIONS = (
 )
 IGPSPORT_DEFAULT_BASE_URL = IGPSPORT_REGIONS[0][2]
 
+COROS_REGIONS = (
+    ("americas", "Americas / Global (teamapi.coros.com)", "https://teamapi.coros.com"),
+    ("europe", "Europe (teameuapi.coros.com)", "https://teameuapi.coros.com"),
+    ("china", "China (teamcnapi.coros.com)", "https://teamcnapi.coros.com"),
+)
+COROS_DEFAULT_BASE_URL = COROS_REGIONS[0][2]
+
 
 def _bool_env(name: str, default: bool) -> bool:
     value = os.getenv(name)
@@ -35,13 +42,20 @@ class Settings:
     poll_seconds: int
     dropbox_source_enabled: bool
     igpsport_source_enabled: bool
+    coros_source_enabled: bool
     dropbox_poll_seconds: int
     igpsport_poll_seconds: int
+    coros_poll_seconds: int
     igpsport_min_poll_seconds: int
+    coros_min_poll_seconds: int
     igpsport_max_pages_per_poll: int
+    coros_max_pages_per_poll: int
     igpsport_base_url: str
+    coros_base_url: str
     igpsport_config_dir: Path
+    coros_config_dir: Path
     igpsport_import_mode: str
+    coros_import_mode: str
     max_retries: int
     log_level: str
     web_auth_enabled: bool
@@ -98,30 +112,52 @@ class Settings:
 
         poll_seconds = _int_env("POLL_SECONDS", 60)
         igpsport_min_poll_seconds = max(_int_env("IGPSPORT_MIN_POLL_SECONDS", 300), 300)
+        coros_min_poll_seconds = max(_int_env("COROS_MIN_POLL_SECONDS", 60), 60)
         return cls(
             app_name=os.getenv("APP_NAME", "fit-to-garmin-bridge"),
             poll_seconds=poll_seconds,
             dropbox_source_enabled=_bool_env("DROPBOX_SOURCE_ENABLED", True),
             igpsport_source_enabled=_bool_env("IGPSPORT_SOURCE_ENABLED", False),
+            coros_source_enabled=_bool_env("COROS_SOURCE_ENABLED", False),
             dropbox_poll_seconds=max(_int_env("DROPBOX_POLL_SECONDS", poll_seconds), 10),
             igpsport_poll_seconds=max(
                 _int_env("IGPSPORT_POLL_SECONDS", 900),
                 igpsport_min_poll_seconds,
             ),
+            coros_poll_seconds=max(
+                _int_env("COROS_POLL_SECONDS", 300),
+                coros_min_poll_seconds,
+            ),
             igpsport_min_poll_seconds=igpsport_min_poll_seconds,
+            coros_min_poll_seconds=coros_min_poll_seconds,
             igpsport_max_pages_per_poll=max(
                 1,
                 min(_int_env("IGPSPORT_MAX_PAGES_PER_POLL", 3), 20),
+            ),
+            coros_max_pages_per_poll=max(
+                1,
+                min(_int_env("COROS_MAX_PAGES_PER_POLL", 3), 20),
             ),
             igpsport_base_url=os.getenv(
                 "IGPSPORT_BASE_URL",
                 IGPSPORT_DEFAULT_BASE_URL,
             ).rstrip("/"),
+            coros_base_url=os.getenv(
+                "COROS_BASE_URL",
+                COROS_DEFAULT_BASE_URL,
+            ).rstrip("/"),
             igpsport_config_dir=Path(
                 os.getenv("IGPSPORT_CONFIG_DIR", "/appdata/igpsport")
             ),
+            coros_config_dir=Path(
+                os.getenv("COROS_CONFIG_DIR", "/appdata/coros")
+            ),
             igpsport_import_mode=os.getenv(
                 "IGPSPORT_IMPORT_MODE",
+                "new_only",
+            ).strip().lower(),
+            coros_import_mode=os.getenv(
+                "COROS_IMPORT_MODE",
                 "new_only",
             ).strip().lower(),
             max_retries=_int_env("MAX_RETRIES", 3),
@@ -203,6 +239,7 @@ class Settings:
             self.detected_devices_path.parent,
             self.garmin_config_dir,
             self.igpsport_config_dir,
+            self.coros_config_dir,
             self.previews_dir,
         ):
             directory.mkdir(parents=True, exist_ok=True)

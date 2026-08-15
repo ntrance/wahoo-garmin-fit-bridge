@@ -40,9 +40,24 @@
           <span class="text-muted">Timezone (TZ):</span>
           <span class="badge bg-secondary">{{ status.system_timezone }}</span>
         </div>
-        <div class="d-flex justify-content-between text-sm">
+        <div class="d-flex justify-content-between text-sm mb-1">
           <span class="text-muted">Local Time:</span>
           <small class="fw-bold text-primary">{{ status.local_time_formatted }}</small>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between text-sm mb-1">
+          <span class="text-muted">Bridge Version:</span>
+          <code>v{{ app_version }}</code>
+        </div>
+        <div class="d-flex justify-content-between text-sm">
+          <span class="text-muted">Update Status:</span>
+          {% if update_status and update_status.update_available %}
+          <a href="{{ update_status.release_url }}" target="_blank" rel="noopener" class="badge bg-info text-dark text-decoration-none">Update available (v{{ update_status.latest_version }})</a>
+          {% elif update_status and not update_status.error %}
+          <span class="badge bg-success">Up to date</span>
+          {% else %}
+          <span class="badge bg-secondary">Unknown</span>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -204,7 +219,7 @@
       </div>
     </div>
 
-    <div class="p-3 border rounded bg-light">
+    <div class="p-3 border rounded bg-body-secondary">
       <h6 class="fw-semibold mb-2">Raw JSON Execution Output</h6>
       <pre id="rawBenchmarkJson" class="mb-0 text-monospace small" style="max-height: 250px; overflow-y: auto;">{{ benchmark | tojson(indent=2) if benchmark else "{}" }}</pre>
     </div>

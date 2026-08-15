@@ -1,22 +1,48 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import secrets
 import sqlite3
 from contextlib import asynccontextmanager
 from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+    Response,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.db import Database
 from app.dropbox_oauth import complete_dropbox_oauth, start_dropbox_oauth
-from app.garmin_upload import friendly_upload_error
-from app.fit_preview import build_activity_preview
+from app.garmin_profile import load_garmin_profile
+from app.garmin_upload import (
+    complete_garmin_mfa_session,
+    friendly_upload_error,
+    start_garmin_session_login,
+)
+from app.log_viewer import (
+    CATEGORY_MAP,
+    filter_entries,
+    get_logs_summary,
+    parse_log_file,
+    purge_logs,
+)
+from app.fit_preview import (
+    _build_activity_preview_cached,
+    build_activity_preview,
+    get_disk_preview_path,
+)
 from app.garmin_device import (
     find_garmin_target,
     garmin_device_presets,
@@ -27,8 +53,10 @@ from app.garmin_device import (
 )
 from app.jobs import BridgeService
 from app.logging_config import configure_logging
+from app.settings import COROS_REGIONS, IGPSPORT_REGIONS
 from app.source_manager import SourceManager
 from app.source_scheduler import SourceScheduler
+from app.sources.coros import CorosStore
 from app.sources.igpsport import IGPSportStore
 from app.security import (
     RateLimiter,
@@ -41,17 +69,18 @@ from app.security import (
 from app.setup_status import (
     build_setup_status,
     clear_garmin_session_pause,
-    create_garmin_session_token,
     save_runtime_config,
     test_dropbox,
     test_garmin_upload,
 )
-from app.settings import IGPSPORT_REGIONS, Settings
+from app.settings import Settings
 from app.setup_status import save_dropbox_auth, save_garmin_profile
 from concurrent.futures import ThreadPoolExecutor
 
 from app.hardware import get_hardware_profile, normalize_timezone_name
 from app.system_metrics import get_system_status, run_system_benchmark
+from app.update_checker import check_for_update
+from app.version import get_app_version
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -85,12 +114,18 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             )
             app_instance.state.scheduler = scheduler
             app_instance.state.scan_task = asyncio.create_task(scheduler.run_forever())
+            app_instance.state.update_check_task = asyncio.create_task(
+                _update_check_loop(app_instance)
+            )
         try:
             yield
         finally:
             task = getattr(app_instance.state, "scan_task", None)
             if task is not None:
                 task.cancel()
+            update_task = getattr(app_instance.state, "update_check_task", None)
+            if update_task is not None:
+                update_task.cancel()
             executor.shutdown(wait=False)
 
     app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -99,6 +134,8 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
     app.state.db = db
     app.state.service = service
     app.state.source_manager = source_manager
+    app.state.app_version = get_app_version()
+    app.state.update_status = None
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):  # type: ignore[no-untyped-def]
@@ -108,11 +145,17 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "same-origin")
         response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        if not request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
         response.headers.setdefault(
             "Content-Security-Policy",
-            "default-src 'self'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
-            "script-src 'self' https://cdn.jsdelivr.net; "
-            "img-src 'self' data: https://tile.openstreetmap.org; "
+            "default-src 'self'; "
+            "style-src 'self' https://cdn.jsdelivr.net https://unpkg.com 'unsafe-inline'; "
+            "script-src 'self' https://cdn.jsdelivr.net https://unpkg.com 'unsafe-inline'; "
+            "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://tile.openstreetmap.org; "
+            "connect-src 'self' https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://api.github.com; "
             "object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
         )
         if runtime_settings.session_cookie_secure:
@@ -158,6 +201,8 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 if session
                 else ""
             ),
+            "app_version": request.app.state.app_version,
+            "update_status": getattr(request.app.state, "update_status", None),
         }
 
     @app.get("/health")
@@ -227,10 +272,21 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         return response
 
     @app.get("/", response_class=HTMLResponse)
-    async def index(request: Request, _auth: None = Depends(require_auth)) -> HTMLResponse:
+    async def index(
+        request: Request,
+        page: int = 1,
+        _auth: None = Depends(require_auth),
+    ) -> HTMLResponse:
         runtime_db = request.app.state.db
         stats = runtime_db.stats()
-        activities = runtime_db.list_recent(50)
+        page_size = 10
+        current_page = max(1, page)
+        activities, total_count = runtime_db.list_paginated(page=current_page, page_size=page_size)
+        total_pages = max(1, math.ceil(total_count / page_size)) if total_count > 0 else 1
+        if current_page > total_pages:
+            current_page = total_pages
+            activities, total_count = runtime_db.list_paginated(page=current_page, page_size=page_size)
+        grouped_activities = group_activities_by_month(activities)
         cleanup_activities = runtime_db.list_cleanup_candidates(100)
         dashboard_message = getattr(app.state, "dashboard_message", None)
         app.state.dashboard_message = None
@@ -241,9 +297,15 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             | {
                 "stats": stats,
                 "activities": activities,
+                "grouped_activities": grouped_activities,
+                "current_page": current_page,
+                "total_pages": total_pages,
+                "total_count": total_count,
+                "page_size": page_size,
                 "cleanup_activities": cleanup_activities,
                 "dashboard_message": dashboard_message,
                 "source_statuses": request.app.state.source_manager.statuses(),
+                "update_status": getattr(request.app.state, "update_status", None),
             },
         )
 
@@ -291,6 +353,25 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
     @app.post("/activity/{activity_id}/reprocess")
     async def reprocess(activity_id: int, _csrf: None = Depends(require_csrf)) -> RedirectResponse:
         await _run_activity_action(app, app.state.service, activity_id, True)
+        return RedirectResponse(f"/activity/{activity_id}", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/activity/{activity_id}/refresh-preview")
+    async def refresh_preview(
+        request: Request,
+        activity_id: int,
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        activity = request.app.state.db.get_activity(activity_id)
+        if activity is not None:
+            previews_dir = request.app.state.settings.previews_dir
+            disk_path = get_disk_preview_path(activity_id, previews_dir)
+            if disk_path and disk_path.exists():
+                try:
+                    disk_path.unlink()
+                except Exception:
+                    pass
+            _build_activity_preview_cached.cache_clear()
+            await asyncio.to_thread(build_activity_preview, activity, previews_dir)
         return RedirectResponse(f"/activity/{activity_id}", status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/activity/{activity_id}/delete-dropbox")
@@ -386,6 +467,9 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             "iGPSPORT source": (
                 "enabled" if runtime_settings.igpsport_source_enabled else "disabled"
             ),
+            "COROS source": (
+                "enabled" if runtime_settings.coros_source_enabled else "disabled"
+            ),
             "Garmin device": runtime_settings.garmin_device_name,
             "Garmin Unit ID configured": (
                 "yes" if runtime_settings.garmin_unit_id else "no"
@@ -424,6 +508,22 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             "cutoff_date": saved_igpsport_profile.get("cutoff_date", ""),
             "password_saved": bool(saved_igpsport_profile.get("password")),
         }
+        saved_coros_profile = CorosStore(
+            runtime_settings.coros_config_dir
+        ).load_profile()
+        coros_profile = {
+            "username": saved_coros_profile.get("username", ""),
+            "base_url": saved_coros_profile.get(
+                "base_url",
+                runtime_settings.coros_base_url,
+            ),
+            "import_mode": saved_coros_profile.get(
+                "import_mode",
+                runtime_settings.coros_import_mode,
+            ),
+            "cutoff_date": saved_coros_profile.get("cutoff_date", ""),
+            "password_saved": bool(saved_coros_profile.get("password")),
+        }
         return templates.TemplateResponse(
             request,
             "config.html",
@@ -438,7 +538,11 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 "source_statuses": request.app.state.source_manager.statuses(),
                 "igpsport_profile": igpsport_profile,
                 "igpsport_regions": IGPSPORT_REGIONS,
+                "coros_profile": coros_profile,
+                "coros_regions": COROS_REGIONS,
                 "status": get_system_status(runtime_settings, app.state.db),
+                "garmin_mfa_pending": getattr(app.state, "garmin_mfa_pending", None) is not None,
+                "garmin_mfa_username": getattr(getattr(app.state, "garmin_mfa_pending", None), "username", ""),
             },
         )
 
@@ -546,6 +650,9 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             "IGPSPORT_SOURCE_ENABLED": (
                 "true" if form.get("igpsport_source_enabled") == "on" else "false"
             ),
+            "COROS_SOURCE_ENABLED": (
+                "true" if form.get("coros_source_enabled") == "on" else "false"
+            ),
             "DROPBOX_POLL_SECONDS": _form_text(
                 form.get("dropbox_poll_seconds"),
                 str(runtime_settings.dropbox_poll_seconds),
@@ -553,6 +660,10 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             "IGPSPORT_POLL_SECONDS": _form_text(
                 form.get("igpsport_poll_seconds"),
                 str(runtime_settings.igpsport_poll_seconds),
+            ),
+            "COROS_POLL_SECONDS": _form_text(
+                form.get("coros_poll_seconds"),
+                str(runtime_settings.coros_poll_seconds),
             ),
             "SMART_SCHEDULING_ENABLED": "true" if form.get("smart_scheduling_enabled") == "on" else "false",
             "QUIET_WINDOW_START": _form_text(form.get("quiet_window_start"), str(runtime_settings.quiet_window_start)),
@@ -575,10 +686,15 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             dry_run=updates["DRY_RUN"] == "true",
             dropbox_source_enabled=updates["DROPBOX_SOURCE_ENABLED"] == "true",
             igpsport_source_enabled=updates["IGPSPORT_SOURCE_ENABLED"] == "true",
+            coros_source_enabled=updates["COROS_SOURCE_ENABLED"] == "true",
             dropbox_poll_seconds=max(int(updates["DROPBOX_POLL_SECONDS"]), 10),
             igpsport_poll_seconds=max(
                 int(updates["IGPSPORT_POLL_SECONDS"]),
                 runtime_settings.igpsport_min_poll_seconds,
+            ),
+            coros_poll_seconds=max(
+                int(updates["COROS_POLL_SECONDS"]),
+                runtime_settings.coros_min_poll_seconds,
             ),
             timezone=updates["TZ"],
             smart_scheduling_enabled=updates["SMART_SCHEDULING_ENABLED"] == "true",
@@ -677,6 +793,77 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 "ok": True,
                 "title": "Delete iGPSPORT profile",
                 "output": "Deleted the saved iGPSPORT profile and session.",
+            }
+        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/coros/save")
+    async def save_coros_profile_route(
+        request: Request,
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        form = await request.form()
+        runtime_settings = app.state.settings
+        store = CorosStore(runtime_settings.coros_config_dir)
+        try:
+            base_url = _form_text(
+                form.get("coros_base_url"),
+                runtime_settings.coros_base_url,
+            ).rstrip("/")
+            if base_url not in {region[2] for region in COROS_REGIONS}:
+                raise ValueError("Select a supported COROS account region.")
+            store.save_profile(
+                username=_form_text(form.get("coros_username"), ""),
+                password=_form_text(form.get("coros_password"), ""),
+                base_url=base_url,
+                import_mode=_form_text(
+                    form.get("coros_import_mode"),
+                    runtime_settings.coros_import_mode,
+                ),
+                cutoff_date=_form_text(form.get("coros_cutoff_date"), ""),
+            )
+            app.state.setup_message = {
+                "ok": True,
+                "title": "COROS profile",
+                "output": "Saved the COROS profile without displaying stored credentials.",
+            }
+        except ValueError as exc:
+            app.state.setup_message = {
+                "ok": False,
+                "title": "COROS profile",
+                "output": str(exc),
+            }
+        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/coros/clear-session")
+    async def clear_coros_session_route(
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        CorosStore(app.state.settings.coros_config_dir).clear_session()
+        app.state.setup_message = {
+            "ok": True,
+            "title": "COROS session",
+            "output": "Cleared the saved COROS session token.",
+        }
+        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/coros/delete")
+    async def delete_coros_profile_route(
+        request: Request,
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        form = await request.form()
+        if _form_text(form.get("confirm"), "") != "DELETE":
+            app.state.setup_message = {
+                "ok": False,
+                "title": "Delete COROS profile",
+                "output": 'Enter "DELETE" to remove the saved profile and session.',
+            }
+        else:
+            CorosStore(app.state.settings.coros_config_dir).delete_profile()
+            app.state.setup_message = {
+                "ok": True,
+                "title": "Delete COROS profile",
+                "output": "Deleted the saved COROS profile and session.",
             }
         return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -913,20 +1100,114 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             app.state.settings = updated_settings
             app.state.db = updated_db
             app.state.service = updated_service
+
+            # If username and password are saved, test session login / trigger MFA if required
+            saved_profile = load_garmin_profile(updated_settings)
+            if saved_profile and saved_profile.garmin_username and saved_profile.garmin_password:
+                ok, msg, pending = await asyncio.to_thread(
+                    start_garmin_session_login,
+                    updated_settings,
+                    saved_profile.garmin_username,
+                    saved_profile.garmin_password,
+                )
+                if pending is not None:
+                    app.state.garmin_mfa_pending = pending
+                    app.state.setup_message = {
+                        "ok": True,
+                        "title": "Garmin Two-Factor Authentication (MFA)",
+                        "output": "Garmin requested a two-factor verification code. Check your email/phone and enter the 6-digit code below.",
+                    }
+                    return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
+                elif not ok:
+                    app.state.garmin_mfa_pending = None
+                    app.state.setup_message = {
+                        "ok": False,
+                        "title": "Garmin setup saved (login failed)",
+                        "output": f"Garmin profile saved, but session test login failed: {msg}",
+                    }
+                    return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
+
+        app.state.garmin_mfa_pending = None
         app.state.setup_message = result.__dict__
-        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/garmin/mfa/complete")
+    async def complete_garmin_mfa_route(request: Request, _csrf: None = Depends(require_csrf)) -> RedirectResponse:
+        pending = getattr(app.state, "garmin_mfa_pending", None)
+        if pending is None:
+            app.state.setup_message = {
+                "ok": False,
+                "title": "Garmin Two-Factor Authentication",
+                "output": "No pending Garmin 2FA session found. Please save your Garmin credentials again to start.",
+            }
+            return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
+
+        form = await request.form()
+        mfa_code = _form_text(form.get("mfa_code"), "")
+        ok, output = await asyncio.to_thread(
+            complete_garmin_mfa_session,
+            pending,
+            mfa_code,
+            app.state.settings,
+        )
+        app.state.garmin_mfa_pending = None
+        app.state.setup_message = {
+            "ok": ok,
+            "title": "Garmin Two-Factor Authentication",
+            "output": output,
+        }
+        return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/garmin/mfa/cancel")
+    async def cancel_garmin_mfa_route(_csrf: None = Depends(require_csrf)) -> RedirectResponse:
+        app.state.garmin_mfa_pending = None
+        app.state.setup_message = {
+            "ok": True,
+            "title": "Garmin Two-Factor Authentication",
+            "output": "Cancelled Garmin two-factor verification.",
+        }
+        return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/config/garmin/clear-pause")
     async def clear_garmin_pause_route(_csrf: None = Depends(require_csrf)) -> RedirectResponse:
         result = clear_garmin_session_pause(app.state.settings)
         app.state.setup_message = result.__dict__
-        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/config/garmin/session")
     async def create_garmin_session_route(_csrf: None = Depends(require_csrf)) -> RedirectResponse:
-        result = create_garmin_session_token(app.state.settings)
-        app.state.setup_message = result.__dict__
-        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+        runtime_settings = app.state.settings
+        profile = load_garmin_profile(runtime_settings)
+        if profile is None or not profile.garmin_username or not profile.garmin_password:
+            app.state.setup_message = {
+                "ok": False,
+                "title": "Garmin session",
+                "output": "Garmin username and password must be saved before creating a session.",
+            }
+            return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
+
+        ok, msg, pending = await asyncio.to_thread(
+            start_garmin_session_login,
+            runtime_settings,
+            profile.garmin_username,
+            profile.garmin_password,
+        )
+        if pending is not None:
+            app.state.garmin_mfa_pending = pending
+            app.state.setup_message = {
+                "ok": True,
+                "title": "Garmin Two-Factor Authentication (MFA)",
+                "output": "Garmin requested a two-factor verification code. Check your email/phone and enter the 6-digit code below.",
+            }
+            return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
+
+        app.state.garmin_mfa_pending = None
+        app.state.setup_message = {
+            "ok": ok,
+            "title": "Garmin session",
+            "output": msg,
+        }
+        return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/config/garmin/upload-real-fit")
     async def upload_real_fit(request: Request, _csrf: None = Depends(require_csrf)) -> RedirectResponse:
@@ -990,7 +1271,11 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         return templates.TemplateResponse(
             request,
             "system.html",
-            context(request) | {"status": status_info, "benchmark": benchmark_results},
+            context(request) | {
+                "status": status_info,
+                "benchmark": benchmark_results,
+                "update_status": getattr(request.app.state, "update_status", None),
+            },
         )
 
     @app.api_route("/api/benchmark", methods=["GET", "POST"])
@@ -1003,11 +1288,88 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         return JSONResponse(result)
 
     @app.get("/logs", response_class=HTMLResponse)
-    async def logs(request: Request, _auth: None = Depends(require_auth)) -> HTMLResponse:
+    async def logs(
+        request: Request,
+        category: str = "all",
+        level: str = "all",
+        q: str = "",
+        view: str = "formatted",
+        flash: str = "",
+        _auth: None = Depends(require_auth),
+    ) -> HTMLResponse:
+        settings = request.app.state.settings
+        all_entries = parse_log_file(settings.log_file, max_lines=2000)
+        summary = get_logs_summary(all_entries)
+        filtered_entries = filter_entries(
+            all_entries,
+            level=level,
+            category=category,
+            search=q,
+        )
+        raw_logs = "\n".join(e.raw for e in filtered_entries)
+        if not raw_logs:
+            raw_logs = "No log entries found matching your filter criteria."
+
+        flash_text = ""
+        if flash == "purged":
+            flash_text = "All application logs were successfully purged."
+        elif flash.startswith("purged_"):
+            cat_key = flash.replace("purged_", "")
+            cat_name = CATEGORY_MAP.get(cat_key, (cat_key, ""))[0]
+            flash_text = f"Logs for category '{cat_name}' were successfully purged."
+
         return templates.TemplateResponse(
             request,
             "logs.html",
-            context(request) | {"logs": _tail(request.app.state.settings.log_file)},
+            context(request)
+            | {
+                "entries": filtered_entries,
+                "summary": summary,
+                "current_category": category,
+                "current_level": level,
+                "current_search": q,
+                "current_view": view,
+                "raw_logs": raw_logs,
+                "flash_message": flash_text,
+            },
+        )
+
+    @app.post("/logs/purge")
+    async def purge_logs_route(
+        request: Request,
+        _auth: None = Depends(require_auth),
+        _csrf: None = Depends(require_csrf),
+    ) -> Response:
+        form = await request.form()
+        category = str(form.get("category") or "all").strip()
+        settings = request.app.state.settings
+        purge_logs(settings, category=category)
+        redirect_param = f"purged_{category}" if category != "all" else "purged"
+        return RedirectResponse(
+            url=f"/logs?flash={redirect_param}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    @app.get("/logs/download")
+    async def download_logs(
+        request: Request,
+        _auth: None = Depends(require_auth),
+    ) -> Response:
+        settings = request.app.state.settings
+        if not settings.log_file.exists():
+            return PlainTextResponse("No logs recorded yet.", media_type="text/plain")
+        return FileResponse(
+            path=settings.log_file,
+            media_type="text/plain",
+            filename="fit-to-garmin-bridge.log",
+        )
+
+    @app.get("/help", response_class=HTMLResponse)
+    async def help_page(request: Request, _auth: None = Depends(require_auth)) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "help.html",
+            context(request),
         )
 
     @app.get("/api/activities")
@@ -1098,6 +1460,23 @@ def _form_text(value: object, default: str) -> str:
     return text if text else default
 
 
+def group_activities_by_month(activities: list[dict[str, Any]]) -> list[tuple[str, list[dict[str, Any]]]]:
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for activity in activities:
+        dt_str = str(activity.get("activity_start_time") or activity.get("first_seen_at") or "")
+        month_label = "Unknown Date"
+        if dt_str:
+            try:
+                dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+                month_label = dt.strftime("%B %Y")
+            except Exception:
+                month_label = "Unknown Date"
+        if month_label not in groups:
+            groups[month_label] = []
+        groups[month_label].append(activity)
+    return list(groups.items())
+
+
 def _safe_next(value: str) -> str:
     if value in {"/", "/config", "/logs"}:
         return value
@@ -1109,6 +1488,26 @@ def _safe_next(value: str) -> str:
             return f"{activity_prefix}{activity_id}"
 
     return "/"
+
+
+async def _update_check_loop(app_instance: FastAPI) -> None:
+    """Periodically check for newer stable GitHub releases."""
+    import logging
+
+    from app.update_checker import CACHE_TTL_SECONDS
+
+    logger = logging.getLogger(__name__)
+    await asyncio.sleep(30)
+    while True:
+        try:
+            current = app_instance.state.app_version
+            result = await asyncio.to_thread(check_for_update, current)
+            app_instance.state.update_status = result
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.debug("Update check failed: %s", exc)
+        await asyncio.sleep(CACHE_TTL_SECONDS)
 
 
 app = create_app()

@@ -4,6 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FIT to Garmin Bridge</title>
+    <script>
+      (function() {
+        const storedTheme = localStorage.getItem('theme');
+        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = storedTheme || (systemDark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-bs-theme', theme);
+      })();
+    </script>
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
       rel="stylesheet"
@@ -15,11 +23,91 @@
         display: block;
         height: 52px;
         width: auto;
+        transition: filter 0.2s ease;
+      }
+      [data-bs-theme="dark"] .navbar-brand-logo {
+        filter: invert(0.9) hue-rotate(180deg) brightness(1.2);
       }
       @media (max-width: 575.98px) {
         .navbar-brand-logo {
           height: 42px;
         }
+      }
+      .theme-toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border-radius: 50%;
+      }
+
+      /* Dark mode toned-down contrast & flashbang elimination */
+      [data-bs-theme="dark"] {
+        --bs-body-bg: #121518;
+        --bs-body-color: #dee2e6;
+        --bs-secondary-bg: #1c2127;
+        --bs-tertiary-bg: #16191d;
+        --bs-border-color: #2b313a;
+        --bs-border-color-translucent: rgba(255, 255, 255, 0.1);
+      }
+
+      .table-month-row,
+      .table-month-row > td,
+      .table-month-row > th {
+        background-color: #e9ecef !important;
+        color: #212529 !important;
+        border-color: #dee2e6 !important;
+      }
+
+      [data-bs-theme="dark"] .table-month-row,
+      [data-bs-theme="dark"] .table-month-row > td,
+      [data-bs-theme="dark"] .table-month-row > th,
+      [data-bs-theme="dark"] .table-secondary,
+      [data-bs-theme="dark"] .table-secondary > td,
+      [data-bs-theme="dark"] .table-secondary > th,
+      [data-bs-theme="dark"] .table-light,
+      [data-bs-theme="dark"] .table-light > td,
+      [data-bs-theme="dark"] .table-light > th {
+        --bs-table-bg: #1c2127 !important;
+        --bs-table-color: #dee2e6 !important;
+        --bs-table-border-color: #2b313a !important;
+        background-color: #1c2127 !important;
+        color: #dee2e6 !important;
+        border-color: #2b313a !important;
+      }
+
+      [data-bs-theme="dark"] .table > :not(caption) > * > * {
+        border-bottom-color: #2b313a;
+      }
+
+      [data-bs-theme="dark"] .card {
+        background-color: #16191d;
+        border-color: #2b313a;
+      }
+
+      [data-bs-theme="dark"] .bg-light,
+      [data-bs-theme="dark"] .bg-body-secondary {
+        background-color: #1c2127 !important;
+      }
+
+      [data-bs-theme="dark"] .bg-body-tertiary {
+        background-color: #14171a !important;
+      }
+
+      [data-bs-theme="dark"] .border {
+        border-color: #2b313a !important;
+      }
+
+      [data-bs-theme="dark"] .modal-content {
+        background-color: #16191d;
+        border-color: #2b313a;
+      }
+
+      [data-bs-theme="dark"] .dropdown-menu {
+        background-color: #16191d;
+        border-color: #2b313a;
       }
     </style>
   </head>
@@ -47,28 +135,143 @@
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="primaryNavigation">
-          <div class="navbar-nav ms-sm-3">
+          <div class="navbar-nav ms-sm-3 align-items-sm-center gap-2">
             <a class="nav-link" href="/">Dashboard</a>
             <a class="nav-link" href="/config">Config</a>
             <a class="nav-link" href="/system">System Test</a>
             <a class="nav-link" href="/logs">Logs</a>
+            <a class="nav-link" href="/help">Help</a>
+            <div class="ms-sm-2 my-1 my-sm-0">
+              {% if update_status and update_status.update_available %}
+              <a href="{{ update_status.release_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-danger rounded-pill px-2 py-0 align-middle fw-semibold" title="Click to view update release on GitHub">
+                ⚡ v{{ update_status.latest_version }} Update Available
+              </a>
+              {% elif update_status and not update_status.error %}
+              <a href="https://github.com/ntrance/wahoo-garmin-fit-bridge/releases" target="_blank" rel="noopener noreferrer" class="badge rounded-pill text-bg-success px-2 py-1 align-middle text-decoration-none" title="Bridge is up to date • View releases on GitHub">
+                v{{ app_version }} • Up to date
+              </a>
+              {% else %}
+              <a href="https://github.com/ntrance/wahoo-garmin-fit-bridge/releases" target="_blank" rel="noopener noreferrer" class="badge rounded-pill text-bg-secondary px-2 py-1 align-middle text-decoration-none" title="View releases on GitHub">
+                v{{ app_version }}
+              </a>
+              {% endif %}
+            </div>
           </div>
-          {% if settings.web_auth_enabled and authenticated %}
-          <form method="post" action="/logout" class="ms-sm-auto mt-3 mt-sm-0">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button class="btn btn-outline-secondary btn-sm" type="submit">Log out</button>
-          </form>
-          {% endif %}
+          <div class="d-flex align-items-center gap-2 ms-sm-auto mt-3 mt-sm-0 flex-wrap">
+            <button
+              type="button"
+              id="themeToggleBtn"
+              class="btn btn-outline-secondary theme-toggle-btn"
+              title="Toggle light/dark theme"
+              aria-label="Toggle theme"
+            >
+              <svg id="themeIconMoon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" class="bi bi-moon-stars-fill" viewBox="0 0 16 16">
+                <path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/>
+                <path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.3 6.596l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/>
+              </svg>
+              <svg id="themeIconSun" xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" class="bi bi-sun-fill d-none text-warning" viewBox="0 0 16 16">
+                <path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/>
+              </svg>
+            </button>
+            <a
+              href="https://github.com/ntrance/wahoo-garmin-fit-bridge"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 text-decoration-none"
+              title="Star wahoo-garmin-fit-bridge on GitHub"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-github" viewBox="0 0 16 16">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
+              </svg>
+              <span>⭐ Star</span>
+            </a>
+            <a
+              href="https://ko-fi.com/ntr4nce"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn btn-sm text-decoration-none d-inline-flex align-items-center gap-1 fw-semibold text-white shadow-sm"
+              style="background-color: #FF5E5B; border: 1px solid #e04b48;"
+              title="Support this project on Ko-fi"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.047 3.974-4.047 3.974s-2.7-2.486-3.96-3.974c-1.306-1.546-1.12-3.649.336-4.537 1.455-.889 3.25.132 3.624.814.374-.682 2.169-1.703 3.624-.814 1.456.888 1.642 2.991.423 4.537zm3.625-2.222c-.104 1.643-1.077 2.668-2.316 2.879.034-.693-.058-1.378-.31-2.008-.636-1.587-2.027-2.677-3.625-3.033.003-.004.006-.007.01-.011h6.241v2.173z"/>
+              </svg>
+              <span>Ko-fi</span>
+            </a>
+            {% if settings.web_auth_enabled and authenticated %}
+            <form method="post" action="/logout" class="m-0">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="btn btn-outline-secondary btn-sm" type="submit">Log out</button>
+            </form>
+            {% endif %}
+          </div>
         </div>
       </div>
     </nav>
     <main class="container py-4">
       {% block content %}{% endblock %}
     </main>
+    <footer class="container text-center text-body-secondary small py-3 border-top mt-auto">
+      FIT to Garmin Bridge v{{ app_version }} •
+      <a href="https://github.com/ntrance/wahoo-garmin-fit-bridge" target="_blank" rel="noopener noreferrer" class="text-body-secondary text-decoration-none">GitHub</a> •
+      <a href="https://github.com/ntrance/wahoo-garmin-fit-bridge/releases" target="_blank" rel="noopener noreferrer" class="text-body-secondary text-decoration-none">Releases</a> •
+      <a href="https://ko-fi.com/ntr4nce" target="_blank" rel="noopener noreferrer" class="text-body-secondary text-decoration-none">Support on Ko-fi ☕</a>
+    </footer>
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
       integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
       crossorigin="anonymous"
     ></script>
+    <script>
+      (function() {
+        const toggleBtn = document.getElementById('themeToggleBtn');
+        const iconMoon = document.getElementById('themeIconMoon');
+        const iconSun = document.getElementById('themeIconSun');
+
+        function getCurrentTheme() {
+          return document.documentElement.getAttribute('data-bs-theme') || 'light';
+        }
+
+        function updateToggleIcon(theme) {
+          if (!iconMoon || !iconSun) return;
+          if (theme === 'dark') {
+            iconMoon.classList.add('d-none');
+            iconSun.classList.remove('d-none');
+            if (toggleBtn) {
+              toggleBtn.setAttribute('title', 'Switch to Light theme');
+              toggleBtn.setAttribute('aria-label', 'Switch to Light theme');
+            }
+          } else {
+            iconSun.classList.add('d-none');
+            iconMoon.classList.remove('d-none');
+            if (toggleBtn) {
+              toggleBtn.setAttribute('title', 'Switch to Dark theme');
+              toggleBtn.setAttribute('aria-label', 'Switch to Dark theme');
+            }
+          }
+        }
+
+        // Initialize icon state
+        updateToggleIcon(getCurrentTheme());
+
+        if (toggleBtn) {
+          toggleBtn.addEventListener('click', function() {
+            const nextTheme = getCurrentTheme() === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-bs-theme', nextTheme);
+            localStorage.setItem('theme', nextTheme);
+            updateToggleIcon(nextTheme);
+          });
+        }
+
+        // Sync with OS color scheme changes if user hasn't explicitly set localStorage
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+          if (!localStorage.getItem('theme')) {
+            const osTheme = e.matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-bs-theme', osTheme);
+            updateToggleIcon(osTheme);
+          }
+        });
+      })();
+    </script>
   </body>
 </html>

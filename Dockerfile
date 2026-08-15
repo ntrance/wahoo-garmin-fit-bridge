@@ -4,6 +4,9 @@ FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
     ca-certificates \
@@ -18,7 +21,7 @@ COPY app ./app
 COPY scripts ./scripts
 COPY --from=rclone /usr/local/bin/rclone /usr/local/bin/rclone
 
-RUN pip install --no-cache-dir . \
+RUN pip install --no-cache-dir -e . \
     && chmod +x /app/scripts/*.sh
 
 ENV PYTHONPATH=/app

@@ -1,0 +1,66 @@
+# Production deployment using pre-built GHCR images.
+# No local build required. Pin BRIDGE_VERSION in .env for controlled upgrades.
+#
+#   BRIDGE_VERSION=1.2.0 docker compose -f docker-compose.ghcr.yml up -d
+#
+# Upgrade:
+#   docker compose -f docker-compose.ghcr.yml pull
+#   docker compose -f docker-compose.ghcr.yml up -d
+
+services:
+  volume-permissions:
+    image: ghcr.io/ntrance/wahoo-garmin-fit-bridge:${BRIDGE_VERSION:-latest}
+    user: "0:0"
+    command: ["python", "-m", "app.volume_permissions"]
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./data:/data
+      - ./appdata:/appdata
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 32
+    restart: "no"
+
+  bridge:
+    image: ghcr.io/ntrance/wahoo-garmin-fit-bridge:${BRIDGE_VERSION:-latest}
+    container_name: wahoo-garmin-fit-bridge
+    env_file:
+      - path: .env
+        required: false
+      - path: ./appdata/runtime.env
+        required: false
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    depends_on:
+      volume-permissions:
+        condition: service_completed_successfully
+    volumes:
+      - ./data:/data
+      - ./appdata:/appdata
+    ports:
+      - "${WEB_PORT:-8088}:8080"
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

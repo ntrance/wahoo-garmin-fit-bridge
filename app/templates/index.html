@@ -16,6 +16,15 @@
   </div>
 </div>
 
+{% if update_status and update_status.update_available %}
+<div class="alert alert-info alert-dismissible fade show" role="alert">
+  <strong>New version available</strong> — FIT to Garmin Bridge v{{ update_status.latest_version }} is available.
+  You are currently running v{{ app_version }}.
+  <a href="{{ update_status.release_url }}" target="_blank" rel="noopener" class="alert-link">View Release</a>
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
 {% if dashboard_message %}
 <div class="alert {{ 'alert-success' if dashboard_message.ok else 'alert-warning' }}">
   <strong>{{ dashboard_message.title }}</strong>
@@ -26,7 +35,7 @@
 <div class="row g-3 mb-4">
   {% for label, key in [("Total", "total"), ("Uploaded", "uploaded"), ("Already on Garmin", "already_on_garmin"), ("Failed", "failed"), ("Duplicate", "duplicate"), ("Pending", "new")] %}
   <div class="col-6 col-md-2">
-    <div class="border rounded p-3">
+    <div class="border rounded p-3 bg-body-secondary">
       <div class="text-secondary small">{{ label }}</div>
       <div class="h4 mb-0">{{ stats.get(key, 0) }}</div>
     </div>
@@ -58,7 +67,7 @@
         <tr>
           <td><a href="/activity/{{ activity.id }}">{{ activity.id }}</a></td>
           <td>{{ activity.filename }}</td>
-          <td><span class="badge text-bg-light border text-dark">{{ activity.source_display_name or activity.source_type or "Local / legacy" }}</span></td>
+          <td><span class="badge bg-body-secondary text-body border">{{ activity.source_display_name or activity.source_type or "Local / legacy" }}</span></td>
           <td><span class="badge text-bg-warning">{{ activity.status }}</span></td>
           <td>{{ activity.activity_start_time or "" }}</td>
           <td>
@@ -101,11 +110,18 @@
       </tr>
     </thead>
     <tbody>
-      {% for activity in activities %}
+      {% for month_label, month_activities in grouped_activities %}
+      <tr class="table-month-row fw-semibold">
+        <td colspan="9" class="py-2">
+          {{ month_label }}
+          <span class="badge bg-body-secondary text-body border ms-2">{{ month_activities | length }} ride{{ 's' if month_activities | length != 1 else '' }}</span>
+        </td>
+      </tr>
+      {% for activity in month_activities %}
       <tr>
         <td><a href="/activity/{{ activity.id }}">{{ activity.id }}</a></td>
         <td>{{ activity.filename }}</td>
-        <td><span class="badge text-bg-light border text-dark">{{ activity.source_display_name or activity.source_type or "Local / legacy" }}</span></td>
+        <td><span class="badge bg-body-secondary text-body border">{{ activity.source_display_name or activity.source_type or "Local / legacy" }}</span></td>
         <td>
           <span class="badge text-bg-secondary">
             {{ "already on Garmin" if activity.status == "already_on_garmin" else activity.status }}
@@ -129,10 +145,32 @@
           {% endif %}
         </td>
       </tr>
+      {% endfor %}
       {% else %}
       <tr><td colspan="9" class="text-secondary">No FIT files seen yet.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+
+{% if total_pages > 1 %}
+<nav aria-label="Activities pagination" class="d-flex justify-content-between align-items-center mt-3 mb-4">
+  <div class="text-secondary small">
+    Showing page <strong>{{ current_page }}</strong> of <strong>{{ total_pages }}</strong> ({{ total_count }} total ride{{ 's' if total_count != 1 else '' }})
+  </div>
+  <ul class="pagination pagination-sm mb-0">
+    <li class="page-item {{ 'disabled' if current_page <= 1 else '' }}">
+      <a class="page-link" href="/?page={{ current_page - 1 }}" aria-label="Previous">&laquo; Previous</a>
+    </li>
+    {% for p in range(1, total_pages + 1) %}
+    <li class="page-item {{ 'active' if p == current_page else '' }}">
+      <a class="page-link" href="/?page={{ p }}">{{ p }}</a>
+    </li>
+    {% endfor %}
+    <li class="page-item {{ 'disabled' if current_page >= total_pages else '' }}">
+      <a class="page-link" href="/?page={{ current_page + 1 }}" aria-label="Next">Next &raquo;</a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
 {% endblock %}

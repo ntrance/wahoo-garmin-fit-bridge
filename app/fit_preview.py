@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from functools import lru_cache
 import json
@@ -17,6 +17,7 @@ class ActivityPreview:
     stacked_chart_svg: str | None
     metrics: list[dict[str, Any]]
     summary: dict[str, str]
+    route_points: list[list[float]] = field(default_factory=list)
 
 
 def get_disk_preview_path(activity_id: str | int, previews_dir: Path | None = None) -> Path | None:
@@ -39,6 +40,7 @@ def save_preview_to_disk(activity_id: str | int, preview: ActivityPreview, previ
             "stacked_chart_svg": preview.stacked_chart_svg,
             "metrics": preview.metrics,
             "summary": preview.summary,
+            "route_points": preview.route_points,
         }
         path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     except Exception:
@@ -58,6 +60,7 @@ def load_preview_from_disk(activity_id: str | int, previews_dir: Path | None = N
             stacked_chart_svg=data.get("stacked_chart_svg"),
             metrics=data.get("metrics", []),
             summary=data.get("summary", {}),
+            route_points=data.get("route_points", []),
         )
     except Exception:
         return None
@@ -65,15 +68,20 @@ def load_preview_from_disk(activity_id: str | int, previews_dir: Path | None = N
 
 def build_activity_preview(activity: dict[str, object], previews_dir: Path | None = None) -> ActivityPreview:
     activity_id = activity.get("id") or activity.get("activity_id")
+    cached = None
     if activity_id:
         cached = load_preview_from_disk(activity_id, previews_dir)
-        if cached is not None:
+        if cached is not None and cached.available and cached.route_points:
             return cached
 
     path = _activity_file_path(activity)
     if path is None:
+        if cached is not None:
+            return cached
         return ActivityPreview(False, "No FIT file path is stored for this activity.", None, None, [], {})
     if not path.exists():
+        if cached is not None:
+            return cached
         return ActivityPreview(False, f"FIT file is not currently available at {path}.", None, None, [], {})
 
     try:
@@ -83,6 +91,8 @@ def build_activity_preview(activity: dict[str, object], previews_dir: Path | Non
             save_preview_to_disk(activity_id, preview, previews_dir)
         return preview
     except Exception as exc:  # pragma: no cover - decoder errors vary by FIT file
+        if cached is not None:
+            return cached
         return ActivityPreview(False, f"Could not read FIT preview data: {exc}", None, None, [], {})
 
 
@@ -115,8 +125,9 @@ def _build_activity_preview_cached(path_str: str, mtime: float, size: int) -> Ac
     if not isinstance(records, list) or not records:
         return ActivityPreview(False, "No record stream was found in this FIT file.", None, None, [], {})
 
-    route_points = _route_points(records)
-    route_svg = _route_svg(route_points) if len(route_points) >= 2 else None
+    route_points_deg = _route_points(records)
+    route_svg = _route_svg(route_points_deg) if len(route_points_deg) >= 2 else None
+    route_points_json = [[lat, lon] for lat, lon in route_points_deg]
     metrics = [
         metric
         for metric in (
@@ -127,21 +138,29 @@ def _build_activity_preview_cached(path_str: str, mtime: float, size: int) -> Ac
         if metric is not None
     ]
     elevation = _metric_series(records, "Elevation", "m", ("enhanced_altitude", "altitude"), lambda value: value)
-    stacked_chart_svg = _stacked_chart_svg(metrics, elevation) if metrics else None
-    summary = _summary(records, route_points, metrics)
+    stacked_chart_svg = _stacked_chart_svg(metrics, elevation) if (metrics or elevation) else None
+    summary = _summary(records, route_points_deg, metrics)
     warnings = ""
     if errors:
         warnings = " FIT decoder reported warnings; preview may be incomplete."
-    if route_svg is None and not metrics:
-        return ActivityPreview(False, "No GPS, speed, power, or heart-rate samples were found.", None, None, [], summary)
-    return ActivityPreview(True, warnings.strip(), route_svg, stacked_chart_svg, metrics, summary)
+    if route_svg is None and not metrics and not elevation:
+        return ActivityPreview(False, "No GPS, speed, power, or heart-rate samples were found.", None, None, [], summary, route_points_json)
+    return ActivityPreview(True, warnings.strip(), route_svg, stacked_chart_svg, metrics, summary, route_points_json)
 
 
 def _activity_file_path(activity: dict[str, object]) -> Path | None:
     for key in ("current_path", "source_path"):
         value = activity.get(key)
         if value:
-            return Path(str(value))
+            p = Path(str(value))
+            if p.exists():
+                return p
+    filename = activity.get("filename") or activity.get("source_original_filename")
+    if filename:
+        for parent in ("/data/uploaded", "/data/processing", "/data/incoming", "/data/archive"):
+            candidate = Path(parent) / str(filename)
+            if candidate.exists():
+                return candidate
     return None
 
 
@@ -185,7 +204,7 @@ def _route_svg(points: list[tuple[float, float]]) -> str:
     if width <= 0 or height <= 0:
         return ""
 
-    padding = max(width, height) * 0.08
+    padding = max(width, height) * 0.10
     view_min_x = min_x - padding
     view_min_y = min_y - padding
     view_width = width + (padding * 2)
@@ -194,15 +213,30 @@ def _route_svg(points: list[tuple[float, float]]) -> str:
     path_d = "M " + " L ".join(f"{x:.6f} {y:.6f}" for x, y in coords)
     start_x, start_y = coords[0]
     end_x, end_y = coords[-1]
-    stroke_width = max(view_width, view_height) / 120.0
-    circle_radius = stroke_width * 1.5
+    stroke_width = max(view_width, view_height) / 80.0
+    circle_radius = stroke_width * 1.6
 
     return f"""<svg viewBox="{view_min_x:.6f} {view_min_y:.6f} {view_width:.6f} {view_height:.6f}"
-     width="100%" height="240" preserveAspectRatio="xMidYMid meet"
-     xmlns="http://www.w3.org/2000/svg" class="img-fluid rounded border bg-light">
-  <path d="{path_d}" fill="none" stroke="#0d6efd" stroke-width="{stroke_width:.6f}" stroke-linecap="round" stroke-linejoin="round" />
-  <circle cx="{start_x:.6f}" cy="{start_y:.6f}" r="{circle_radius:.6f}" fill="#198754" />
-  <circle cx="{end_x:.6f}" cy="{end_y:.6f}" r="{circle_radius:.6f}" fill="#dc3545" />
+     width="100%" height="320" preserveAspectRatio="xMidYMid meet"
+     xmlns="http://www.w3.org/2000/svg" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 8px;">
+  <defs>
+    <linearGradient id="routeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+    <filter id="routeGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="{stroke_width * 0.5:.4f}" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <path d="{path_d}" fill="none" stroke="url(#routeGradient)" stroke-width="{stroke_width:.6f}" stroke-linecap="round" stroke-linejoin="round" filter="url(#routeGlow)" />
+  <circle cx="{start_x:.6f}" cy="{start_y:.6f}" r="{circle_radius * 1.3:.6f}" fill="#ffffff" />
+  <circle cx="{start_x:.6f}" cy="{start_y:.6f}" r="{circle_radius:.6f}" fill="#10b981" />
+  <circle cx="{end_x:.6f}" cy="{end_y:.6f}" r="{circle_radius * 1.3:.6f}" fill="#ffffff" />
+  <circle cx="{end_x:.6f}" cy="{end_y:.6f}" r="{circle_radius:.6f}" fill="#ef4444" />
 </svg>"""
 
 
@@ -220,9 +254,9 @@ def _metric_series(
     for index in range(0, len(records), step):
         record = records[index]
         value = None
-        for field in fields:
-            if field in record and record[field] is not None:
-                value = record[field]
+        for fld in fields:
+            if fld in record and record[fld] is not None:
+                value = record[fld]
                 break
 
         timestamp = record.get("timestamp")
@@ -254,18 +288,48 @@ def _stacked_chart_svg(
     elevation: dict[str, Any] | None,
 ) -> str:
     color_map = {
-        "Speed": "#0d6efd",
-        "Power": "#fd7e14",
-        "Heart rate": "#dc3545",
-        "Elevation": "#6c757d",
+        "Speed": "#0284c7",
+        "Power": "#f59e0b",
+        "Heart rate": "#ef4444",
+        "Elevation": "#10b981",
     }
 
     svg_parts: list[str] = [
-        '<svg viewBox="0 0 800 240" width="100%" height="240" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" class="rounded border bg-light p-2">'
+        """<svg viewBox="0 0 900 240" width="100%" height="240" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" class="w-100 rounded border bg-white p-2">
+  <defs>
+    <linearGradient id="elevFill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0.03" />
+    </linearGradient>
+  </defs>
+  <!-- Grid Lines -->
+  <line x1="40" y1="30" x2="880" y2="30" stroke="#f1f5f9" stroke-width="1" stroke-dasharray="4,4" />
+  <line x1="40" y1="80" x2="880" y2="80" stroke="#f1f5f9" stroke-width="1" stroke-dasharray="4,4" />
+  <line x1="40" y1="130" x2="880" y2="130" stroke="#f1f5f9" stroke-width="1" stroke-dasharray="4,4" />
+  <line x1="40" y1="180" x2="880" y2="180" stroke="#f1f5f9" stroke-width="1" stroke-dasharray="4,4" />
+  <line x1="40" y1="210" x2="880" y2="210" stroke="#cbd5e1" stroke-width="1.5" />"""
     ]
 
-    all_series = metrics + ([elevation] if elevation else [])
-    for metric in all_series:
+    if elevation and "series" in elevation and len(elevation["series"]) >= 2:
+        elev_series = elevation["series"]
+        min_elev = min(v for _, v in elev_series)
+        max_elev = max(v for _, v in elev_series)
+        span_elev = max(max_elev - min_elev, 1.0)
+        n_pts = len(elev_series)
+
+        coords_elev = []
+        for i, (_, val) in enumerate(elev_series):
+            x = (i / (n_pts - 1)) * 840.0 + 40.0
+            norm_y = (val - min_elev) / span_elev
+            y = 205.0 - (norm_y * 165.0)
+            coords_elev.append((x, y))
+
+        elev_path = "M " + " L ".join(f"{x:.1f} {y:.1f}" for x, y in coords_elev)
+        elev_area = f"{elev_path} L {coords_elev[-1][0]:.1f} 210 L {coords_elev[0][0]:.1f} 210 Z"
+        svg_parts.append(f'  <path d="{elev_area}" fill="url(#elevFill)" />')
+        svg_parts.append(f'  <path d="{elev_path}" fill="none" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.7" />')
+
+    for metric in metrics:
         if not metric or "series" not in metric:
             continue
 
@@ -274,30 +338,27 @@ def _stacked_chart_svg(
         if len(series) < 2:
             continue
 
-        color = color_map.get(label, "#212529")
+        color = color_map.get(label, "#334155")
         min_v = min(v for _, v in series)
         max_v = max(v for _, v in series)
         span_v = max(max_v - min_v, 1.0)
 
-        coords: list[tuple[float, float]] = []
+        coords = []
         num_points = len(series)
 
         for i, (_, val) in enumerate(series):
-            x = (i / (num_points - 1)) * 760.0 + 20.0
+            x = (i / (num_points - 1)) * 840.0 + 40.0
             norm_y = (val - min_v) / span_v
-            y = 210.0 - (norm_y * 170.0)
+            y = 205.0 - (norm_y * 165.0)
             coords.append((x, y))
 
         path_d = "M " + " L ".join(f"{x:.1f} {y:.1f}" for x, y in coords)
-        opacity = "0.4" if label == "Elevation" else "0.8"
-        stroke_w = "1.5" if label == "Elevation" else "2.0"
-
         svg_parts.append(
-            f'<path d="{path_d}" fill="none" stroke="{color}" stroke-width="{stroke_w}" stroke-opacity="{opacity}" stroke-linecap="round" />'
+            f'  <path d="{path_d}" fill="none" stroke="{color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />'
         )
 
     svg_parts.append("</svg>")
-    return "".join(svg_parts)
+    return "\n".join(svg_parts)
 
 
 def _summary(

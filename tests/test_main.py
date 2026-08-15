@@ -741,3 +741,50 @@ def test_garmin_profile_save_writes_native_config(settings):
     assert "Profile: wahoo" in check.output
     assert "Garmin account: user@example.com" in check.output
     assert "usage:" not in check.output
+
+
+def test_dashboard_pagination_and_monthly_grouping(settings):
+    app = create_app(settings, start_background=False)
+    db = Database(settings.sqlite_path)
+    db.init()
+
+    # Create 15 activities across 2 months
+    for i in range(15):
+        month = "08" if i < 10 else "07"
+        day = f"{10 + (i % 5):02d}"
+        db.create_activity(
+            source_path=f"/data/incoming/ride_{i}.fit",
+            current_path=f"/data/incoming/ride_{i}.fit",
+            filename=f"ride_{i}.fit",
+            sha256=f"hash_{i}",
+            file_size=1000 + i,
+            activity_start_time=f"2026-{month}-{day}T12:00:00Z",
+            status="uploaded",
+        )
+
+    with TestClient(app) as client:
+        # Page 1 (10 items)
+        res_page1 = client.get("/")
+        assert res_page1.status_code == 200
+        assert "August 2026" in res_page1.text
+        assert "Showing page <strong>1</strong> of <strong>2</strong>" in res_page1.text
+        assert "ride_9.fit" in res_page1.text
+
+        # Page 2 (5 items)
+        res_page2 = client.get("/?page=2")
+        assert res_page2.status_code == 200
+        assert "July 2026" in res_page2.text
+        assert "Showing page <strong>2</strong> of <strong>2</strong>" in res_page2.text
+
+
+def test_help_page(settings):
+    app = create_app(settings, start_background=False)
+    with TestClient(app) as client:
+        res = client.get("/help")
+        assert res.status_code == 200
+        assert "Multi-Platform Sync Guide" in res.text
+        assert "mklink" in res.text
+        assert "ln -s" in res.text
+        assert "Dropsync" in res.text
+
+
