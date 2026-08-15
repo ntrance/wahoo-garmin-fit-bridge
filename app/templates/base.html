@@ -59,22 +59,36 @@
                 ⚡ v{{ update_status.latest_version }} Update Available
               </a>
               {% elif update_status and not update_status.error %}
-              <span class="badge rounded-pill text-bg-success px-2 py-1 align-middle" title="Bridge is up to date">
+              <a href="https://github.com/ntrance/wahoo-garmin-fit-bridge/releases" target="_blank" rel="noopener noreferrer" class="badge rounded-pill text-bg-success px-2 py-1 align-middle text-decoration-none" title="Bridge is up to date • View releases on GitHub">
                 v{{ app_version }} • Up to date
-              </span>
+              </a>
               {% else %}
-              <span class="badge rounded-pill text-bg-secondary px-2 py-1 align-middle">
+              <a href="https://github.com/ntrance/wahoo-garmin-fit-bridge/releases" target="_blank" rel="noopener noreferrer" class="badge rounded-pill text-bg-secondary px-2 py-1 align-middle text-decoration-none" title="View releases on GitHub">
                 v{{ app_version }}
-              </span>
+              </a>
               {% endif %}
             </div>
           </div>
-          {% if settings.web_auth_enabled and authenticated %}
-          <form method="post" action="/logout" class="ms-sm-auto mt-3 mt-sm-0">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button class="btn btn-outline-secondary btn-sm" type="submit">Log out</button>
-          </form>
-          {% endif %}
+          <div class="d-flex align-items-center gap-2 ms-sm-auto mt-3 mt-sm-0">
+            <a
+              href="https://github.com/ntrance/wahoo-garmin-fit-bridge"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 text-decoration-none"
+              title="View repository on GitHub"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-github" viewBox="0 0 16 16">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
+              </svg>
+              <span>GitHub</span>
+            </a>
+            {% if settings.web_auth_enabled and authenticated %}
+            <form method="post" action="/logout" class="m-0">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="btn btn-outline-secondary btn-sm" type="submit">Log out</button>
+            </form>
+            {% endif %}
+          </div>
         </div>
       </div>
     </nav>
