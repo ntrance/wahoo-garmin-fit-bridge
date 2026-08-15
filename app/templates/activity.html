@@ -94,19 +94,100 @@
     {% endfor %}
   </div>
   {% endif %}
-  {% if preview.route_svg %}
-  <div class="mb-3">{{ preview.route_svg | safe }}</div>
+  {% if preview.route_points and preview.route_points | length > 1 %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <div class="mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h3 class="h6 mb-0 fw-bold">GPS Route Map</h3>
+      {% if preview.route_svg %}
+      <div class="btn-group btn-group-sm" role="group">
+        <button type="button" class="btn btn-primary btn-sm" id="btn-show-map" onclick="toggleRouteView('map')">Interactive Map</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-show-svg" onclick="toggleRouteView('svg')">Vector Outline</button>
+      </div>
+      {% endif %}
+    </div>
+    <div id="activity-map" style="height: 400px; width: 100%; border-radius: 8px; border: 1px solid #dee2e6; z-index: 1;"></div>
+    {% if preview.route_svg %}
+    <div id="activity-svg" class="d-none">
+      {{ preview.route_svg | safe }}
+    </div>
+    {% endif %}
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const coords = {{ preview.route_points | tojson }};
+      if (coords && coords.length > 1) {
+        const map = L.map('activity-map', { scrollWheelZoom: false }).setView(coords[0], 13);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        const polyline = L.polyline(coords, {
+          color: '#fc4c02',
+          weight: 4,
+          opacity: 0.9,
+          lineJoin: 'round',
+          lineCap: 'round'
+        }).addTo(map);
+
+        L.circleMarker(coords[0], {
+          radius: 7,
+          color: '#ffffff',
+          weight: 2,
+          fillColor: '#10b981',
+          fillOpacity: 1
+        }).bindPopup('<b>🟢 Start</b>').addTo(map);
+
+        L.circleMarker(coords[coords.length - 1], {
+          radius: 7,
+          color: '#ffffff',
+          weight: 2,
+          fillColor: '#ef4444',
+          fillOpacity: 1
+        }).bindPopup('<b>🏁 Finish</b>').addTo(map);
+
+        map.fitBounds(polyline.getBounds(), { padding: [35, 35] });
+
+        window.toggleRouteView = function(view) {
+          const mapEl = document.getElementById('activity-map');
+          const svgEl = document.getElementById('activity-svg');
+          const btnMap = document.getElementById('btn-show-map');
+          const btnSvg = document.getElementById('btn-show-svg');
+          if (view === 'map') {
+            mapEl.classList.remove('d-none');
+            if (svgEl) svgEl.classList.add('d-none');
+            btnMap.className = 'btn btn-primary btn-sm';
+            btnSvg.className = 'btn btn-outline-secondary btn-sm';
+            map.invalidateSize();
+          } else {
+            mapEl.classList.add('d-none');
+            if (svgEl) svgEl.classList.remove('d-none');
+            btnMap.className = 'btn btn-outline-secondary btn-sm';
+            btnSvg.className = 'btn btn-primary btn-sm';
+          }
+        };
+      }
+    });
+  </script>
+  {% elif preview.route_svg %}
+  <div class="mb-3">
+    <h3 class="h6 mb-2 fw-bold">GPS Route Outline</h3>
+    {{ preview.route_svg | safe }}
+  </div>
   {% endif %}
   {% if preview.stacked_chart_svg %}
-  <div class="border rounded p-2">
+  <div class="border rounded p-3 bg-light mt-3">
     <div class="d-flex justify-content-between align-items-center mb-2">
-      <h3 class="h6 mb-0">Speed, Power, Heart Rate</h3>
-      <span class="text-secondary small">Elevation profile shown in green behind each graph</span>
+      <h3 class="h6 mb-0 fw-bold">Activity Metrics Timeline</h3>
+      <span class="text-secondary small">Elevation profile in green</span>
     </div>
-    <div class="d-flex flex-wrap gap-2 mb-2">
+    <div class="d-flex flex-wrap gap-2 mb-3">
       {% for metric in preview.metrics %}
-      <span class="badge text-bg-light border text-secondary">
-        {{ metric.label }} min {{ metric.min }} {{ metric.unit }} · avg {{ metric.avg }} {{ metric.unit }} · max {{ metric.max }} {{ metric.unit }}
+      <span class="badge bg-white border text-dark p-2">
+        <strong style="color: {{ '#0284c7' if metric.label == 'Speed' else ('#f59e0b' if metric.label == 'Power' else '#ef4444') }};">{{ metric.label }}</strong>:
+        min {{ metric.min }} {{ metric.unit }} · avg {{ metric.avg }} · max {{ metric.max }}
       </span>
       {% endfor %}
     </div>
