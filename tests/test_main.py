@@ -785,6 +785,6 @@ def test_help_page(settings):
         assert "Multi-Platform Sync Guide" in res.text
         assert "mklink" in res.text
         assert "ln -s" in res.text
-        assert "FolderSync" in res.text
+        assert "Dropsync" in res.text
 
 

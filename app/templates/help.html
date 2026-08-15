@@ -135,21 +135,25 @@
       </div>
       <div class="card-body">
         <p class="text-secondary small mb-2">
-          Because Karoo runs on Android, it saves <code>.fit</code> files to <code>/sdcard/FitFiles/</code>.
+          Because Karoo runs on Android, it saves completed ride <code>.fit</code> files to <code>/sdcard/FitFiles/</code>.
         </p>
-        <p class="text-secondary small mb-1 fw-semibold">Automatic Wi-Fi Folder Sync:</p>
+        <p class="text-secondary small mb-1 fw-semibold">Automatic Wi-Fi Folder Sync via Dropsync:</p>
         <ol class="text-secondary small mb-3">
-          <li>Install a background sync app (like <strong>FolderSync</strong> or <strong>Autosync for Dropbox</strong>) on your Karoo.</li>
-          <li>Set the sync pair:
-            <ul>
-              <li><strong>Local folder</strong>: <code>/sdcard/FitFiles/</code></li>
-              <li><strong>Remote Dropbox folder</strong>: <code>Dropbox/Apps/WahooFitness/Karoo</code></li>
-              <li><strong>Trigger</strong>: Automatic on Wi-Fi connection.</li>
+          <li>
+            Install <strong><a href="https://play.google.com/store/apps/details?id=com.ttxapps.dropsync&hl=en_GB" target="_blank" rel="noopener" class="text-primary fw-semibold">Dropsync (Autosync for Dropbox) on Google Play ↗</a></strong> (or sideload its APK onto your Karoo).
+          </li>
+          <li>Open Dropsync and link your <strong>Dropbox</strong> account.</li>
+          <li>Set up the <strong>Sync Folder Pair</strong>:
+            <ul class="mt-1">
+              <li><strong>Local device folder</strong>: <code>/sdcard/FitFiles/</code></li>
+              <li><strong>Remote Dropbox folder</strong>: <code>Apps/WahooFitness/Karoo</code> (or <code>Apps/WahooFitness</code>)</li>
+              <li><strong>Sync method</strong>: <code>Upload only</code></li>
+              <li><strong>Sync trigger</strong>: Automatic when connected to Wi-Fi.</li>
             </ul>
           </li>
         </ol>
         <div class="alert alert-info py-2 mb-0 small">
-          💡 When you finish an outdoor ride and Karoo connects to Wi-Fi/Hotspot, the ride auto-syncs to Dropbox -> Bridge -> Garmin Connect.
+          💡 <strong>Done:</strong> When you finish an outdoor ride and Karoo connects to your home Wi-Fi or phone hotspot, Dropsync immediately uploads the Karoo <code>.fit</code> file to Dropbox. The bridge processes it and uploads to Garmin Connect as a Garmin Edge 1040 activity!
         </div>
       </div>
     </div>

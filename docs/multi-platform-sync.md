@@ -76,14 +76,15 @@ ln -s ~/Documents/MyWhoosh ~/Dropbox/Apps/WahooFitness/MyWhoosh
 
 ## 4. Hammerhead Karoo (1, 2, 3)
 
-The Hammerhead Karoo runs on an Android operating system and saves `.fit` files locally to `/sdcard/FitFiles/`.
+The Hammerhead Karoo runs on an Android operating system and saves completed ride `.fit` files locally to `/sdcard/FitFiles/`.
 
-### Automatic Wi-Fi Sync Setup:
-1. Enable Developer Options / Sideloading on your Karoo.
-2. Install an Android background folder sync app (such as **FolderSync** or **Autosync for Dropbox**).
-3. Configure the sync pair:
+### Automatic Wi-Fi Sync Setup via Dropsync:
+1. Install **[Dropsync (Autosync for Dropbox) on Google Play](https://play.google.com/store/apps/details?id=com.ttxapps.dropsync&hl=en_GB)** (or sideload the APK onto your Karoo).
+2. Open Dropsync and link your **Dropbox** account.
+3. Configure the **Sync Folder Pair**:
    * **Local Folder**: `/sdcard/FitFiles/`
-   * **Remote Folder**: `Dropbox / Apps / WahooFitness / Karoo`
+   * **Remote Folder**: `Apps/WahooFitness/Karoo` (or `Apps/WahooFitness`)
+   * **Sync Method**: `Upload only`
    * **Sync Trigger**: Automatic on Wi-Fi connection.
 
 Whenever you finish a ride outside and connect to your home Wi-Fi or phone hotspot, the Karoo `.fit` file is pushed to Dropbox and processed by the bridge.
