@@ -180,7 +180,7 @@ class CorosClient:
                 "COROS profile is incomplete.",
                 requires_attention=True,
             )
-        pwd_hash = hashlib.md5(password.encode("utf-8")).hexdigest()
+        pwd_hash = hashlib.md5(password.encode("utf-8"), usedforsecurity=False).hexdigest()  # nosec B324
         response = self._request(
             "POST",
             LOGIN_PATH,
