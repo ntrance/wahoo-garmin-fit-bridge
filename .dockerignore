@@ -1,0 +1,19 @@
+# Exclude tests and development files from Docker build context
+tests/
+.git/
+.github/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.coverage
+htmlcov/
+data/
+appdata/
+real_fit/
+.env
+.env.*
+scratch/
+*.log

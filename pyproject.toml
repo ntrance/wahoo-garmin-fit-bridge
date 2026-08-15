@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wahoo-garmin-fit-bridge"
-version = "1.2.0"
+version = "1.2.1"
 description = "Multi-platform FIT activity sync to Garmin Connect (Wahoo, iGPSPORT, COROS, Hammerhead Karoo, Zwift, MyWhoosh)"
 requires-python = ">=3.12"
 dependencies = [

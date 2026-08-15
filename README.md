@@ -158,6 +158,17 @@ Once verified, your session token is saved securely to `/appdata/garmin/tokens`.
 
 ---
 
+## 💡 Garmin Device Display & Physio TrueUp
+
+* **Virtual Head Unit Emulation (Default / Preset)**:
+  * When using the built-in Garmin Edge 1040 preset, the bridge generates standard Garmin device telemetry.
+  * **No device will show in Garmin Connect** on the activity page when you emulate the head unit, because Garmin only displays device icons for physical serial numbers actively paired to your Garmin account. All workout data, graphs, GPS routes, and power metrics are fully preserved.
+* **Using Your Own Real Garmin Device FIT File**:
+  * If you own a Garmin device (e.g. Edge, Forerunner, Fenix) and upload a sample `.fit` file from it in **Config ➔ Real Head Unit**, the activity **will** show your device name and credit **Physio TrueUp / Training Load** metrics.
+  * *Note: The activity syncs to your Garmin Connect cloud account; Garmin does not back-sync the activity file down to your physical bike computer or watch storage.*
+
+---
+
 ## 🔄 Updating to the Latest Version
 
 The bridge automatically checks for updates and displays a notification in the header when a new version is available.
