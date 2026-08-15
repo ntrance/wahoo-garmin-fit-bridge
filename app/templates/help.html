@@ -159,25 +159,48 @@
     </div>
   </div>
 
-  <!-- Local Folder & COROS -->
+  <!-- COROS Setup -->
   <div class="col-12">
     <div class="card border">
       <div class="card-header bg-white fw-bold">
-        📁 Local Folder Watcher & COROS
+        ⌚ COROS (Watches & DURA Bike Computers) Setup
       </div>
       <div class="card-body">
-        <h6 class="fw-semibold text-dark small mb-1">Direct Folder Watcher (NAS / Local Host)</h6>
+        <h6 class="fw-semibold text-dark small mb-1">Native Cloud-to-Cloud Sync (Recommended):</h6>
         <p class="text-secondary small mb-2">
-          If you prefer not to use Dropbox, map any local/NAS folder into <code>/data/incoming</code> in Docker:
+          The bridge includes a direct <strong>COROS Cloud API Source</strong> that connects straight to your COROS account in the background:
         </p>
-        <pre class="bg-dark text-light p-2 rounded small mb-3"><code>volumes:
+        <ol class="text-secondary small mb-3">
+          <li>Go to <a href="/config" class="fw-semibold text-primary">Config</a> and toggle on <strong>COROS Cloud</strong>.</li>
+          <li>Enter your COROS account email and password, select your account region, and click <strong>Save COROS profile</strong>.</li>
+          <li>Click <strong>Test COROS login</strong> to verify connection.</li>
+        </ol>
+        <div class="alert alert-success py-2 mb-3 small">
+          ✅ <strong>Done:</strong> The moment your COROS watch or DURA finishes syncing to the COROS app on your phone, the bridge automatically detects the new workout, downloads the <code>.fit</code> file, rewrites the device header, and pushes it to Garmin Connect!
+        </div>
+
+        <h6 class="fw-semibold text-dark small mb-1">Alternative Manual 1-Tap Share from COROS App:</h6>
+        <p class="text-secondary small mb-0">
+          Open any activity in the COROS phone app ➔ tap <strong>Share</strong> ➔ <strong>Export Data</strong> ➔ <strong>FIT</strong> ➔ save to Dropbox (<code>Apps/WahooFitness/COROS</code>).
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Local Folder Watcher -->
+  <div class="col-12">
+    <div class="card border">
+      <div class="card-header bg-white fw-bold">
+        📁 Local Folder Watcher (NAS / Local Server)
+      </div>
+      <div class="card-body">
+        <p class="text-secondary small mb-2">
+          If you prefer not to use cloud accounts and run the bridge on a home server (Unraid, Synology, TrueNAS), map any local network directory directly to <code>/data/incoming</code> in Docker:
+        </p>
+        <pre class="bg-dark text-light p-2 rounded small mb-0"><code>volumes:
   - /path/to/my/fit_folder:/data/incoming
   - ./data:/data
   - ./appdata:/appdata</code></pre>
-        <h6 class="fw-semibold text-dark small mb-1">COROS DURA & Watches</h6>
-        <p class="text-secondary small mb-0">
-          Export <code>.fit</code> files from COROS Training Hub into your linked Dropbox folder (<code>Apps/WahooFitness/COROS</code>) or local incoming folder.
-        </p>
       </div>
     </div>
   </div>

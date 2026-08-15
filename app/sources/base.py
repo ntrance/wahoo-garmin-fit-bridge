@@ -109,6 +109,14 @@ def _infer_legacy_source(fit_path: Path) -> SourceFileMetadata:
             source_display_name="iGPSPORT Cloud",
             source_original_filename=filename,
         )
+    if lowered.startswith("coros_") and lowered.endswith(".fit"):
+        external_id = filename[len("coros_") : -len(".fit")]
+        return SourceFileMetadata(
+            source_type="coros",
+            source_external_id=external_id or None,
+            source_display_name="COROS Cloud",
+            source_original_filename=filename,
+        )
     if "elemnt" in lowered:
         return SourceFileMetadata(
             source_type="dropbox",

@@ -93,8 +93,18 @@ Whenever you finish a ride outside and connect to your home Wi-Fi or phone hotsp
 
 ## 5. COROS (DURA Head Unit & Watches)
 
-* **Via COROS Training Hub**: Export the `.fit` file directly into your linked Dropbox folder (`Apps/WahooFitness/COROS`).
-* **Via Automatic Cloud Sync**: Link your COROS account to auto-export to Dropbox or a watched local directory.
+The bridge provides a native **COROS Cloud API Source** for seamless automated syncing without needing phone file exports or third-party intermediary apps:
+
+### 1. Automatic Cloud Sync (Recommended):
+1. In the bridge web interface, navigate to **Config** and toggle on **COROS Cloud**.
+2. Enter your COROS account email and password, select your account region (Americas/Global, Europe, or China), and click **Save COROS profile**.
+3. Click **Test COROS login** to verify the connection.
+4. **Done**: Every time you finish a ride on your COROS DURA or watch and it syncs to the COROS mobile app, the bridge automatically fetches the `.fit` file from COROS servers in the background, rewrites the device to a Garmin Edge 1040, and uploads it to Garmin Connect!
+
+### 2. Manual 1-Tap Share from COROS App:
+1. Open any completed activity in the **COROS mobile app**.
+2. Tap the **Share** button in the top right corner ➔ **Export Data** ➔ **FIT**.
+3. Save to your linked Dropbox folder (`Apps/WahooFitness/COROS`).
 
 ---
 

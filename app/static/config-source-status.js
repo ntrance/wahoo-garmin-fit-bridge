@@ -10,6 +10,11 @@
       pillId: "igpsport-status-pill",
       toggleId: "igpsport_source_enabled",
     },
+    {
+      label: "COROS",
+      pillId: "coros-status-pill",
+      toggleId: "coros_source_enabled",
+    },
   ];
 
   const updatePill = ({ label, pillId, toggleId }) => {

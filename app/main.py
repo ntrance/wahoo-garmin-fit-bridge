@@ -34,8 +34,10 @@ from app.garmin_device import (
 )
 from app.jobs import BridgeService
 from app.logging_config import configure_logging
+from app.settings import COROS_REGIONS, IGPSPORT_REGIONS
 from app.source_manager import SourceManager
 from app.source_scheduler import SourceScheduler
+from app.sources.coros import CorosStore
 from app.sources.igpsport import IGPSportStore
 from app.security import (
     RateLimiter,
@@ -53,7 +55,7 @@ from app.setup_status import (
     test_dropbox,
     test_garmin_upload,
 )
-from app.settings import IGPSPORT_REGIONS, Settings
+from app.settings import Settings
 from app.setup_status import save_dropbox_auth, save_garmin_profile
 from concurrent.futures import ThreadPoolExecutor
 
@@ -447,6 +449,9 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             "iGPSPORT source": (
                 "enabled" if runtime_settings.igpsport_source_enabled else "disabled"
             ),
+            "COROS source": (
+                "enabled" if runtime_settings.coros_source_enabled else "disabled"
+            ),
             "Garmin device": runtime_settings.garmin_device_name,
             "Garmin Unit ID configured": (
                 "yes" if runtime_settings.garmin_unit_id else "no"
@@ -485,6 +490,22 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             "cutoff_date": saved_igpsport_profile.get("cutoff_date", ""),
             "password_saved": bool(saved_igpsport_profile.get("password")),
         }
+        saved_coros_profile = CorosStore(
+            runtime_settings.coros_config_dir
+        ).load_profile()
+        coros_profile = {
+            "username": saved_coros_profile.get("username", ""),
+            "base_url": saved_coros_profile.get(
+                "base_url",
+                runtime_settings.coros_base_url,
+            ),
+            "import_mode": saved_coros_profile.get(
+                "import_mode",
+                runtime_settings.coros_import_mode,
+            ),
+            "cutoff_date": saved_coros_profile.get("cutoff_date", ""),
+            "password_saved": bool(saved_coros_profile.get("password")),
+        }
         return templates.TemplateResponse(
             request,
             "config.html",
@@ -499,6 +520,8 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 "source_statuses": request.app.state.source_manager.statuses(),
                 "igpsport_profile": igpsport_profile,
                 "igpsport_regions": IGPSPORT_REGIONS,
+                "coros_profile": coros_profile,
+                "coros_regions": COROS_REGIONS,
                 "status": get_system_status(runtime_settings, app.state.db),
             },
         )
@@ -607,6 +630,9 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             "IGPSPORT_SOURCE_ENABLED": (
                 "true" if form.get("igpsport_source_enabled") == "on" else "false"
             ),
+            "COROS_SOURCE_ENABLED": (
+                "true" if form.get("coros_source_enabled") == "on" else "false"
+            ),
             "DROPBOX_POLL_SECONDS": _form_text(
                 form.get("dropbox_poll_seconds"),
                 str(runtime_settings.dropbox_poll_seconds),
@@ -614,6 +640,10 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             "IGPSPORT_POLL_SECONDS": _form_text(
                 form.get("igpsport_poll_seconds"),
                 str(runtime_settings.igpsport_poll_seconds),
+            ),
+            "COROS_POLL_SECONDS": _form_text(
+                form.get("coros_poll_seconds"),
+                str(runtime_settings.coros_poll_seconds),
             ),
             "SMART_SCHEDULING_ENABLED": "true" if form.get("smart_scheduling_enabled") == "on" else "false",
             "QUIET_WINDOW_START": _form_text(form.get("quiet_window_start"), str(runtime_settings.quiet_window_start)),
@@ -636,10 +666,15 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             dry_run=updates["DRY_RUN"] == "true",
             dropbox_source_enabled=updates["DROPBOX_SOURCE_ENABLED"] == "true",
             igpsport_source_enabled=updates["IGPSPORT_SOURCE_ENABLED"] == "true",
+            coros_source_enabled=updates["COROS_SOURCE_ENABLED"] == "true",
             dropbox_poll_seconds=max(int(updates["DROPBOX_POLL_SECONDS"]), 10),
             igpsport_poll_seconds=max(
                 int(updates["IGPSPORT_POLL_SECONDS"]),
                 runtime_settings.igpsport_min_poll_seconds,
+            ),
+            coros_poll_seconds=max(
+                int(updates["COROS_POLL_SECONDS"]),
+                runtime_settings.coros_min_poll_seconds,
             ),
             timezone=updates["TZ"],
             smart_scheduling_enabled=updates["SMART_SCHEDULING_ENABLED"] == "true",
@@ -738,6 +773,77 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 "ok": True,
                 "title": "Delete iGPSPORT profile",
                 "output": "Deleted the saved iGPSPORT profile and session.",
+            }
+        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/coros/save")
+    async def save_coros_profile_route(
+        request: Request,
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        form = await request.form()
+        runtime_settings = app.state.settings
+        store = CorosStore(runtime_settings.coros_config_dir)
+        try:
+            base_url = _form_text(
+                form.get("coros_base_url"),
+                runtime_settings.coros_base_url,
+            ).rstrip("/")
+            if base_url not in {region[2] for region in COROS_REGIONS}:
+                raise ValueError("Select a supported COROS account region.")
+            store.save_profile(
+                username=_form_text(form.get("coros_username"), ""),
+                password=_form_text(form.get("coros_password"), ""),
+                base_url=base_url,
+                import_mode=_form_text(
+                    form.get("coros_import_mode"),
+                    runtime_settings.coros_import_mode,
+                ),
+                cutoff_date=_form_text(form.get("coros_cutoff_date"), ""),
+            )
+            app.state.setup_message = {
+                "ok": True,
+                "title": "COROS profile",
+                "output": "Saved the COROS profile without displaying stored credentials.",
+            }
+        except ValueError as exc:
+            app.state.setup_message = {
+                "ok": False,
+                "title": "COROS profile",
+                "output": str(exc),
+            }
+        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/coros/clear-session")
+    async def clear_coros_session_route(
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        CorosStore(app.state.settings.coros_config_dir).clear_session()
+        app.state.setup_message = {
+            "ok": True,
+            "title": "COROS session",
+            "output": "Cleared the saved COROS session token.",
+        }
+        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/coros/delete")
+    async def delete_coros_profile_route(
+        request: Request,
+        _csrf: None = Depends(require_csrf),
+    ) -> RedirectResponse:
+        form = await request.form()
+        if _form_text(form.get("confirm"), "") != "DELETE":
+            app.state.setup_message = {
+                "ok": False,
+                "title": "Delete COROS profile",
+                "output": 'Enter "DELETE" to remove the saved profile and session.',
+            }
+        else:
+            CorosStore(app.state.settings.coros_config_dir).delete_profile()
+            app.state.setup_message = {
+                "ok": True,
+                "title": "Delete COROS profile",
+                "output": "Deleted the saved COROS profile and session.",
             }
         return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
 

@@ -8,6 +8,7 @@ from typing import Any
 from app.db import Database, utc_now
 from app.settings import Settings
 from app.sources.base import ActivitySource, SourceResult, SourceSyncResult
+from app.sources.coros import CorosSource
 from app.sources.dropbox import DropboxSource
 from app.sources.igpsport import IGPSportSource
 
@@ -26,6 +27,7 @@ class SourceManager:
         configured_sources = sources or [
             DropboxSource(settings, db),
             IGPSportSource(settings, db),
+            CorosSource(settings, db),
         ]
         self.sources = {source.source_type: source for source in configured_sources}
         self._locks = {
