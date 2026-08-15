@@ -4,11 +4,11 @@ This guide explains how to automatically sync `.fit` activity files from **Hamme
 
 ---
 
-## 1. How It Works (Fit-File-Faker Core)
+## 1. How It Works (Garmin Edge Emulation Engine)
 
 Garmin Connect normally rejects third-party activities from watch **Physio TrueUp** (Training Load, Acute Load, Recovery Time, and VO2 Max).
 
-The bridge incorporates a **Fit-File-Faker (FFF)** binary rewriter:
+The bridge incorporates a **Garmin Edge Emulation Engine**:
 1. **Physical Devices (Karoo, COROS, Wahoo, iGPSPORT)**: Rewrites `file_id` (Message 0) and `device_info` (Message 23) to a **Garmin Edge 1040** (`3907`) with a unique Unit ID (`3991000001`), prompting Garmin Connect to treat the ride as recorded on a genuine Garmin bike computer.
 2. **Virtual Trainers (Zwift, MyWhoosh, TrainingPeaks Virtual)**: Rewrites the header to a Garmin Edge 1040 **while preserving `sub_sport: 27` (Virtual Activity)**. This displays the activity as a Virtual Ride in Garmin Connect while still feeding full TSS, VO2 Max, and Training Load down to your Garmin watch.
 
