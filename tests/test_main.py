@@ -776,3 +776,15 @@ def test_dashboard_pagination_and_monthly_grouping(settings):
         assert "July 2026" in res_page2.text
         assert "Showing page <strong>2</strong> of <strong>2</strong>" in res_page2.text
 
+
+def test_help_page(settings):
+    app = create_app(settings, start_background=False)
+    with TestClient(app) as client:
+        res = client.get("/help")
+        assert res.status_code == 200
+        assert "Multi-Platform Sync Guide" in res.text
+        assert "mklink" in res.text
+        assert "ln -s" in res.text
+        assert "FolderSync" in res.text
+
+

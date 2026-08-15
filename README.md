@@ -178,6 +178,15 @@ the confirmation page and enter `IMPORT`.
 Imports are capped at 500 activities and retain all global duplicate checks.
 Start with a small dry-run batch.
 
+## Multi-Platform & Virtual Trainer Sync (Zwift, Karoo, COROS, MyWhoosh)
+
+The bridge automatically imports and rewrites `.fit` files from other hardware head units and indoor virtual cycling platforms:
+
+* **Virtual Trainers (Zwift / MyWhoosh / TrainingPeaks Virtual / Rouvy)**: Converts FIT headers to a Garmin Edge 1040 while preserving `sub_sport: 27` (Virtual Activity). In Garmin Connect, the ride displays as a virtual indoor ride while computing full **Training Stress Score (TSS)**, **VO2 Max**, and **Training Load** for your Garmin watch.
+* **Physical Head Units (Hammerhead Karoo / COROS DURA / Watches)**: Converts FIT headers to Garmin Edge 1040 for watch **Physio TrueUp** sync.
+
+For complete step-by-step setup guides on Windows PC (`mklink`), macOS (`ln -s`), Hammerhead Karoo Wi-Fi sync, and COROS, see the [Multi-Platform Sync Guide](docs/multi-platform-sync.md).
+
 ## Use Both Sources
 
 Wahoo/Dropbox and iGPSPORT can remain enabled together. Each source has its own

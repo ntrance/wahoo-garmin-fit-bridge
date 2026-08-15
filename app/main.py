@@ -1050,6 +1050,14 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             context(request) | {"logs": _tail(request.app.state.settings.log_file)},
         )
 
+    @app.get("/help", response_class=HTMLResponse)
+    async def help_page(request: Request, _auth: None = Depends(require_auth)) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "help.html",
+            context(request),
+        )
+
     @app.get("/api/activities")
     async def api_activities(_auth: None = Depends(require_auth)) -> JSONResponse:
         return JSONResponse(app.state.db.list_recent(100))

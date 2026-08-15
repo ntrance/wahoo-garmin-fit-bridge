@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Help & Multi-Platform Sync Guide</h1>
+</div>
+
+<div class="row g-4">
+  <!-- How it Works -->
+  <div class="col-12">
+    <div class="card border">
+      <div class="card-header bg-white fw-bold">
+        ⚡ How Fit-File-Faker & Garmin Watch Physio TrueUp Work
+      </div>
+      <div class="card-body">
+        <p class="text-secondary mb-2">
+          Garmin Connect normally accepts third-party FIT uploads but <strong>refuses to calculate Training Load, Acute Load, Recovery Time, or VO2 Max for your Garmin watch</strong> unless the file claims to be from a Garmin device.
+        </p>
+        <div class="row g-3 mt-1">
+          <div class="col-md-6">
+            <div class="p-3 border rounded bg-light h-100">
+              <h6 class="fw-semibold text-primary mb-1">Physical Head Units (Karoo / COROS / Wahoo / iGPSPORT)</h6>
+              <p class="text-muted small mb-0">
+                The bridge rewrites the FIT header to an emulated <strong>Garmin Edge 1040</strong> (Product <code>3907</code>, Unit ID <code>3991000001</code>). Garmin Connect treats the ride as recorded on a Garmin head unit, syncing all physiological load metrics down to your Garmin watch.
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="p-3 border rounded bg-light h-100">
+              <h6 class="fw-semibold text-primary mb-1">Virtual Trainers (Zwift / MyWhoosh / TrainingPeaks Virtual)</h6>
+              <p class="text-muted small mb-0">
+                The bridge rewrites the header to a Garmin Edge 1040 <strong>while preserving <code>sub_sport: 27</code> (Virtual Activity)</strong>. In Garmin Connect, the activity displays as an indoor Virtual Ride while still giving your watch full TSS, VO2 Max, and Training Load.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Windows PC Guide -->
+  <div class="col-md-6">
+    <div class="card border h-100">
+      <div class="card-header bg-white fw-bold">
+        💻 Windows PC Setup (Zwift / MyWhoosh / Rouvy)
+      </div>
+      <div class="card-body">
+        <p class="text-secondary small mb-2">
+          Virtual cycling apps save <code>.fit</code> files locally to your PC Documents folder:
+        </p>
+        <ul class="text-secondary small mb-3">
+          <li><strong>Zwift</strong>: <code>%USERPROFILE%\Documents\Zwift\Activities</code></li>
+          <li><strong>MyWhoosh</strong>: <code>%USERPROFILE%\Documents\MyWhoosh</code></li>
+        </ul>
+        <p class="text-secondary small mb-1 fw-semibold">Automatic 1-time setup (Windows Directory Junction):</p>
+        <ol class="text-secondary small mb-3">
+          <li>Install the official <strong>Dropbox Desktop App</strong> on your PC.</li>
+          <li>Open <strong>Command Prompt</strong> as Administrator (<code>cmd.exe</code>).</li>
+          <li>Run this command:</li>
+        </ol>
+        <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\Zwift" "%USERPROFILE%\Documents\Zwift\Activities"</code></pre>
+        <div class="alert alert-success py-2 mb-0 small">
+          ✅ <strong>Done:</strong> The moment you finish a ride in Zwift, Windows mirrors the <code>.fit</code> file to Dropbox. The bridge processes it and uploads to Garmin automatically.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- macOS Guide -->
+  <div class="col-md-6">
+    <div class="card border h-100">
+      <div class="card-header bg-white fw-bold">
+        🍎 Mac / macOS Setup (Zwift / MyWhoosh)
+      </div>
+      <div class="card-body">
+        <p class="text-secondary small mb-2">
+          On macOS, Zwift and MyWhoosh save <code>.fit</code> files to:
+        </p>
+        <ul class="text-secondary small mb-3">
+          <li><code>~/Documents/Zwift/Activities/</code></li>
+        </ul>
+        <p class="text-secondary small mb-1 fw-semibold">Automatic 1-time setup (macOS Symlink):</p>
+        <ol class="text-secondary small mb-3">
+          <li>Install the official <strong>Dropbox Desktop App</strong> for Mac.</li>
+          <li>Open the <strong>Terminal</strong> app.</li>
+          <li>Run this command:</li>
+        </ol>
+        <pre class="bg-dark text-light p-2 rounded small mb-2 user-select-all"><code>ln -s ~/Documents/Zwift/Activities ~/Dropbox/Apps/WahooFitness/Zwift</code></pre>
+        <div class="alert alert-success py-2 mb-0 small">
+          ✅ <strong>Done:</strong> Any virtual ride finished on your Mac automatically syncs straight into Dropbox and uploads to Garmin Connect.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hammerhead Karoo -->
+  <div class="col-md-6">
+    <div class="card border h-100">
+      <div class="card-header bg-white fw-bold">
+        🚴 Hammerhead Karoo (1, 2, 3) Setup
+      </div>
+      <div class="card-body">
+        <p class="text-secondary small mb-2">
+          Because Karoo runs on Android, it saves <code>.fit</code> files to <code>/sdcard/FitFiles/</code>.
+        </p>
+        <p class="text-secondary small mb-1 fw-semibold">Automatic Wi-Fi Folder Sync:</p>
+        <ol class="text-secondary small mb-3">
+          <li>Install a background sync app (like <strong>FolderSync</strong> or <strong>Autosync for Dropbox</strong>) on your Karoo.</li>
+          <li>Set the sync pair:
+            <ul>
+              <li><strong>Local folder</strong>: <code>/sdcard/FitFiles/</code></li>
+              <li><strong>Remote Dropbox folder</strong>: <code>Dropbox/Apps/WahooFitness/Karoo</code></li>
+              <li><strong>Trigger</strong>: Automatic on Wi-Fi connection.</li>
+            </ul>
+          </li>
+        </ol>
+        <div class="alert alert-info py-2 mb-0 small">
+          💡 When you finish an outdoor ride and Karoo connects to Wi-Fi/Hotspot, the ride auto-syncs to Dropbox -> Bridge -> Garmin Connect.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Local Folder & COROS -->
+  <div class="col-md-6">
+    <div class="card border h-100">
+      <div class="card-header bg-white fw-bold">
+        📁 Local Folder Watcher & COROS
+      </div>
+      <div class="card-body">
+        <h6 class="fw-semibold text-dark small mb-1">Direct Folder Watcher (NAS / Local Host)</h6>
+        <p class="text-secondary small mb-2">
+          If you prefer not to use Dropbox, map any local/NAS folder into <code>/data/incoming</code> in Docker:
+        </p>
+        <pre class="bg-dark text-light p-2 rounded small mb-3"><code>volumes:
+  - /path/to/my/fit_folder:/data/incoming
+  - ./data:/data
+  - ./appdata:/appdata</code></pre>
+        <h6 class="fw-semibold text-dark small mb-1">COROS DURA & Watches</h6>
+        <p class="text-secondary small mb-0">
+          Export <code>.fit</code> files from COROS Training Hub into your linked Dropbox folder (<code>Apps/WahooFitness/COROS</code>) or local incoming folder.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
