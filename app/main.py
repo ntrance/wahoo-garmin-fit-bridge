@@ -131,9 +131,11 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             response.headers["Expires"] = "0"
         response.headers.setdefault(
             "Content-Security-Policy",
-            "default-src 'self'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
-            "script-src 'self' https://cdn.jsdelivr.net; "
-            "img-src 'self' data: https://tile.openstreetmap.org; "
+            "default-src 'self'; "
+            "style-src 'self' https://cdn.jsdelivr.net https://unpkg.com 'unsafe-inline'; "
+            "script-src 'self' https://cdn.jsdelivr.net https://unpkg.com 'unsafe-inline'; "
+            "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://tile.openstreetmap.org; "
+            "connect-src 'self' https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://api.github.com; "
             "object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
         )
         if runtime_settings.session_cookie_secure:
