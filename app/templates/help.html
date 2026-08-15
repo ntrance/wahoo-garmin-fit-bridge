@@ -205,6 +205,42 @@
     </div>
   </div>
 
+  <!-- Garmin Two-Factor Authentication (MFA) & CLI Setup -->
+  <div class="col-12">
+    <div class="card border">
+      <div class="card-header bg-white fw-bold">
+        🔐 Garmin Two-Factor Authentication (MFA) & Terminal Login
+      </div>
+      <div class="card-body">
+        <p class="text-secondary small mb-2">
+          If your Garmin account has 2-Factor Authentication (2FA) enabled or if you are running the bridge on a cloud server/VPS, Garmin may send a 6-digit one-time code to your email when authenticating.
+        </p>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="p-3 border rounded bg-light h-100">
+              <h6 class="fw-semibold text-dark mb-1">Option 1: Web Browser UI</h6>
+              <p class="text-muted small mb-0">
+                In <strong>Config ➔ Garmin Upload</strong>, enter your Garmin email & password. If Garmin requires MFA, a verification box will appear asking for the 6-digit code sent to your email. Enter it and click <strong>Verify & Complete Setup</strong>.
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="p-3 border rounded bg-light h-100">
+              <h6 class="fw-semibold text-dark mb-1">Option 2: Terminal / Docker CLI Login</h6>
+              <p class="text-muted small mb-2">
+                If you prefer to log in interactively from the command line on your server, run:
+              </p>
+              <pre class="bg-dark text-light p-2 rounded small mb-0 user-select-all"><code>docker compose run --rm -it bridge wahoo-bridge-garmin-login</code></pre>
+            </div>
+          </div>
+        </div>
+        <div class="alert alert-info py-2 px-3 mt-3 mb-0 small">
+          ℹ️ <strong>Note:</strong> Once your Garmin session token is saved to <code>/appdata/garmin/tokens</code>, the bridge automatically refreshes it in the background. You do not need to re-enter MFA codes for subsequent uploads.
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Open Source & Support -->
   <div class="col-12 text-center py-3">
     <div class="card border bg-light p-4">

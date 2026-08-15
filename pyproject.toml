@@ -28,6 +28,7 @@ dev = [
 
 [project.scripts]
 wahoo-bridge-hash-password = "app.security_cli:main"
+wahoo-bridge-garmin-login = "app.garmin_cli:main"
 
 
 [tool.setuptools.packages.find]

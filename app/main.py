@@ -18,7 +18,12 @@ from fastapi.templating import Jinja2Templates
 
 from app.db import Database
 from app.dropbox_oauth import complete_dropbox_oauth, start_dropbox_oauth
-from app.garmin_upload import friendly_upload_error
+from app.garmin_profile import load_garmin_profile
+from app.garmin_upload import (
+    complete_garmin_mfa_session,
+    friendly_upload_error,
+    start_garmin_session_login,
+)
 from app.fit_preview import (
     _build_activity_preview_cached,
     build_activity_preview,
@@ -50,7 +55,6 @@ from app.security import (
 from app.setup_status import (
     build_setup_status,
     clear_garmin_session_pause,
-    create_garmin_session_token,
     save_runtime_config,
     test_dropbox,
     test_garmin_upload,
@@ -523,6 +527,8 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 "coros_profile": coros_profile,
                 "coros_regions": COROS_REGIONS,
                 "status": get_system_status(runtime_settings, app.state.db),
+                "garmin_mfa_pending": getattr(app.state, "garmin_mfa_pending", None) is not None,
+                "garmin_mfa_username": getattr(getattr(app.state, "garmin_mfa_pending", None), "username", ""),
             },
         )
 
@@ -1080,20 +1086,114 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             app.state.settings = updated_settings
             app.state.db = updated_db
             app.state.service = updated_service
+
+            # If username and password are saved, test session login / trigger MFA if required
+            saved_profile = load_garmin_profile(updated_settings)
+            if saved_profile and saved_profile.garmin_username and saved_profile.garmin_password:
+                ok, msg, pending = await asyncio.to_thread(
+                    start_garmin_session_login,
+                    updated_settings,
+                    saved_profile.garmin_username,
+                    saved_profile.garmin_password,
+                )
+                if pending is not None:
+                    app.state.garmin_mfa_pending = pending
+                    app.state.setup_message = {
+                        "ok": True,
+                        "title": "Garmin Two-Factor Authentication (MFA)",
+                        "output": "Garmin requested a two-factor verification code. Check your email/phone and enter the 6-digit code below.",
+                    }
+                    return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
+                elif not ok:
+                    app.state.garmin_mfa_pending = None
+                    app.state.setup_message = {
+                        "ok": False,
+                        "title": "Garmin setup saved (login failed)",
+                        "output": f"Garmin profile saved, but session test login failed: {msg}",
+                    }
+                    return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
+
+        app.state.garmin_mfa_pending = None
         app.state.setup_message = result.__dict__
-        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/garmin/mfa/complete")
+    async def complete_garmin_mfa_route(request: Request, _csrf: None = Depends(require_csrf)) -> RedirectResponse:
+        pending = getattr(app.state, "garmin_mfa_pending", None)
+        if pending is None:
+            app.state.setup_message = {
+                "ok": False,
+                "title": "Garmin Two-Factor Authentication",
+                "output": "No pending Garmin 2FA session found. Please save your Garmin credentials again to start.",
+            }
+            return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
+
+        form = await request.form()
+        mfa_code = _form_text(form.get("mfa_code"), "")
+        ok, output = await asyncio.to_thread(
+            complete_garmin_mfa_session,
+            pending,
+            mfa_code,
+            app.state.settings,
+        )
+        app.state.garmin_mfa_pending = None
+        app.state.setup_message = {
+            "ok": ok,
+            "title": "Garmin Two-Factor Authentication",
+            "output": output,
+        }
+        return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/config/garmin/mfa/cancel")
+    async def cancel_garmin_mfa_route(_csrf: None = Depends(require_csrf)) -> RedirectResponse:
+        app.state.garmin_mfa_pending = None
+        app.state.setup_message = {
+            "ok": True,
+            "title": "Garmin Two-Factor Authentication",
+            "output": "Cancelled Garmin two-factor verification.",
+        }
+        return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/config/garmin/clear-pause")
     async def clear_garmin_pause_route(_csrf: None = Depends(require_csrf)) -> RedirectResponse:
         result = clear_garmin_session_pause(app.state.settings)
         app.state.setup_message = result.__dict__
-        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/config/garmin/session")
     async def create_garmin_session_route(_csrf: None = Depends(require_csrf)) -> RedirectResponse:
-        result = create_garmin_session_token(app.state.settings)
-        app.state.setup_message = result.__dict__
-        return RedirectResponse("/config", status_code=status.HTTP_303_SEE_OTHER)
+        runtime_settings = app.state.settings
+        profile = load_garmin_profile(runtime_settings)
+        if profile is None or not profile.garmin_username or not profile.garmin_password:
+            app.state.setup_message = {
+                "ok": False,
+                "title": "Garmin session",
+                "output": "Garmin username and password must be saved before creating a session.",
+            }
+            return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
+
+        ok, msg, pending = await asyncio.to_thread(
+            start_garmin_session_login,
+            runtime_settings,
+            profile.garmin_username,
+            profile.garmin_password,
+        )
+        if pending is not None:
+            app.state.garmin_mfa_pending = pending
+            app.state.setup_message = {
+                "ok": True,
+                "title": "Garmin Two-Factor Authentication (MFA)",
+                "output": "Garmin requested a two-factor verification code. Check your email/phone and enter the 6-digit code below.",
+            }
+            return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
+
+        app.state.garmin_mfa_pending = None
+        app.state.setup_message = {
+            "ok": ok,
+            "title": "Garmin session",
+            "output": msg,
+        }
+        return RedirectResponse("/config#section-garmin", status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/config/garmin/upload-real-fit")
     async def upload_real_fit(request: Request, _csrf: None = Depends(require_csrf)) -> RedirectResponse:

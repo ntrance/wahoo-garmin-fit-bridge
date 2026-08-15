@@ -649,6 +649,31 @@
     </summary>
     <div class="border-top p-3">
 
+      {% if garmin_mfa_pending %}
+      <div class="alert alert-warning border-warning p-3 mb-3 shadow-sm" id="garmin-mfa-box">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="fs-5">🔐</span>
+          <h4 class="h6 fw-bold mb-0 text-dark">Garmin Two-Factor Authentication (MFA) Required</h4>
+        </div>
+        <p class="small text-dark mb-3">
+          Garmin Connect sent a 6-digit one-time verification code to the email or SMS on file for <strong>{{ garmin_mfa_username or setup.garmin.username }}</strong>.
+          Enter the code below to complete setup and save your session tokens:
+        </p>
+        <form method="post" action="/config/garmin/mfa/complete" class="row g-2 align-items-center">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="col-sm-5 col-md-4">
+            <input class="form-control" name="mfa_code" placeholder="Enter 6-digit code (e.g. 123456)" autocomplete="one-time-code" autofocus required>
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-primary" type="submit">Verify & Complete Setup</button>
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-outline-secondary" type="submit" formaction="/config/garmin/mfa/cancel">Cancel</button>
+          </div>
+        </form>
+      </div>
+      {% endif %}
+
       {% if setup.garmin.configured %}
       <div class="border rounded p-3 mb-3 bg-light">
         <div class="row g-2">
@@ -785,7 +810,11 @@
           </div>
         </form>
         {% endif %}
-        <div class="small text-secondary">Upload path: the native Wahoo converter applies the selected Garmin device identity, then uploads through Garmin Connect using the token folder below.</div>
+        <div class="small text-secondary mb-2">Upload path: the native Wahoo converter applies the selected Garmin device identity, then uploads through Garmin Connect using the token folder below.</div>
+        <div class="border rounded p-2 bg-light text-secondary small">
+          💡 <strong>MFA & Terminal Users:</strong> If your account has 2FA enabled, the web UI will prompt you for the verification code. Alternatively, you can log in interactively in terminal via:
+          <pre class="bg-dark text-light p-2 rounded small mt-1 mb-0 user-select-all"><code>docker compose run --rm -it bridge wahoo-bridge-garmin-login</code></pre>
+        </div>
       </div>
       <dl class="mb-3 small">
         <dt>Config folder</dt>
