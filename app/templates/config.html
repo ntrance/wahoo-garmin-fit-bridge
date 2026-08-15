@@ -109,24 +109,30 @@
       {% endif %}
     </div>
     {% endif %}
-    <div class="row g-3">
-      <div class="col-md-3 col-sm-6">
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3">
+      <div class="col">
         <label class="form-label text-sm fw-semibold" for="rclone_remote">Dropbox Remote</label>
         <input class="form-control form-control-sm" id="rclone_remote" name="rclone_remote" value="{{ setup.dropbox.remote }}">
       </div>
-      <div class="col-md-3 col-sm-6">
+      <div class="col">
         <label class="form-label text-sm fw-semibold" for="dropbox_wahoo_path">Wahoo Dropbox Path</label>
         <input class="form-control form-control-sm" id="dropbox_wahoo_path" name="dropbox_wahoo_path" value="{{ setup.dropbox.path }}">
       </div>
-      <div class="col-md-3 col-sm-6">
+      <div class="col">
+        <label class="form-label text-sm fw-semibold" for="dropbox_poll_seconds">Dropbox Poll (seconds)</label>
+        <input class="form-control form-control-sm" id="dropbox_poll_seconds" name="dropbox_poll_seconds" type="number" min="10" value="{{ settings.dropbox_poll_seconds }}">
+      </div>
+      <div class="col">
         <label class="form-label text-sm fw-semibold" for="garmin_profile_name">Garmin Profile</label>
         <input class="form-control form-control-sm" id="garmin_profile_name" name="garmin_profile_name" value="{{ setup.garmin.profile }}">
       </div>
-      <div class="col-md-3 col-sm-6">
+      <div class="col">
         <label class="form-label text-sm fw-semibold" for="garmin_unit_id">Garmin Unit ID</label>
         <input class="form-control form-control-sm" id="garmin_unit_id" name="garmin_unit_id" value="{{ settings.garmin_unit_id }}" autocomplete="off">
       </div>
+    </div>
 
+    <div class="row g-3 mt-1">
       <div class="col-12">
         <label class="form-label text-sm fw-semibold text-dark mb-1">Platform Source Toggles & Mode:</label>
         <div class="d-flex flex-wrap gap-4 align-items-center p-2 rounded bg-light border">
@@ -149,24 +155,18 @@
         </div>
       </div>
 
-      {% if settings.dropbox_source_enabled or settings.igpsport_source_enabled or settings.coros_source_enabled %}
+      {% if settings.igpsport_source_enabled or settings.coros_source_enabled %}
       <div class="col-12">
         <div class="row g-3">
-          {% if settings.dropbox_source_enabled %}
-          <div class="col-md-4">
-            <label class="form-label text-sm fw-semibold" for="dropbox_poll_seconds">Dropbox Poll Interval (seconds)</label>
-            <input class="form-control form-control-sm" id="dropbox_poll_seconds" name="dropbox_poll_seconds" type="number" min="10" value="{{ settings.dropbox_poll_seconds }}">
-          </div>
-          {% endif %}
           {% if settings.igpsport_source_enabled %}
-          <div class="col-md-4">
+          <div class="col-md-6">
             <label class="form-label text-sm fw-semibold" for="igpsport_poll_seconds">iGPSPORT Poll Interval (seconds)</label>
             <input class="form-control form-control-sm" id="igpsport_poll_seconds" name="igpsport_poll_seconds" type="number" min="{{ settings.igpsport_min_poll_seconds }}" value="{{ settings.igpsport_poll_seconds }}">
             <div class="form-text text-xs">Min: {{ settings.igpsport_min_poll_seconds }}s</div>
           </div>
           {% endif %}
           {% if settings.coros_source_enabled %}
-          <div class="col-md-4">
+          <div class="col-md-6">
             <label class="form-label text-sm fw-semibold" for="coros_poll_seconds">COROS Poll Interval (seconds)</label>
             <input class="form-control form-control-sm" id="coros_poll_seconds" name="coros_poll_seconds" type="number" min="{{ settings.coros_min_poll_seconds }}" value="{{ settings.coros_poll_seconds }}">
             <div class="form-text text-xs">Min: {{ settings.coros_min_poll_seconds }}s</div>
