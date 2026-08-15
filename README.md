@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  Automatically sync Wahoo/ELEMNT and iGPSPORT activities into Garmin Connect.
+  <strong>Automatically sync your rides from Wahoo, iGPSPORT, COROS, Karoo, and Virtual Cycling apps directly into Garmin Connect.</strong>
 </p>
 
 <p align="center">
@@ -12,80 +12,52 @@
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/ntrance/wahoo-garmin-fit-bridge"></a>
 </p>
 
-FIT to Garmin Bridge is a self-hosted Docker service for people who record rides
-outside the Garmin ecosystem but still want those activities in Garmin Connect.
-It watches your enabled sources, downloads each original FIT file, applies the
-identity of a Garmin device you own, prevents duplicate imports, and uploads the
-result automatically.
+<p align="center">
+  <a href="https://ko-fi.com/ntr4nce">
+    <img src="https://storage.ko-fi.com/cdn/kofi3.png?v=3" height="36" alt="Support this project on Ko-fi">
+  </a>
+</p>
 
-Supported sources:
+---
 
-| Source | Automatic sync | How activities are obtained |
-| --- | --- | --- |
-| Wahoo / ELEMNT | Yes | Wahoo shares activities to Dropbox |
-| iGPSPORT | Yes | The bridge polls your iGPSPORT Cloud account |
+**FIT to Garmin Bridge** is an easy-to-use, self-hosted tool designed for cyclists who record activities using non-Garmin bike computers or indoor virtual training apps, but still want their rides in **Garmin Connect** with full **Training Load**, **VO2 Max**, and **Watch Physio TrueUp** sync!
 
-Enable either source or both. They run independently and feed the same protected
-processing pipeline.
+---
 
-[![Support this project on Ko-fi](https://storage.ko-fi.com/cdn/kofi3.png?v=3)](https://ko-fi.com/ntr4nce)
+## 🚴 Supported Platforms
 
-> [!IMPORTANT]
-> This is an unofficial community project. It is not affiliated with or supported
-> by Wahoo, iGPSPORT, Garmin, or Dropbox. Garmin Connect and iGPSPORT Cloud do not
-> provide supported public APIs for this workflow, so upstream changes may
-> temporarily interrupt syncing.
+You can enable any combination of sources. The bridge runs them together in the background automatically:
 
-## Features
+| Platform / Source | Connection Type | How It Works |
+| :--- | :--- | :--- |
+| **Wahoo / ELEMNT** | Automatic (Dropbox) | Automatically syncs rides shared to your Dropbox from the ELEMNT app. |
+| **iGPSPORT Cloud** | Automatic (Cloud API) | Automatically polls and syncs newly completed rides from your iGPSPORT account. |
+| **COROS Cloud** (Watches & DURA) | Automatic (Cloud API) | Automatically polls and syncs activities from your COROS account. |
+| **Hammerhead Karoo** | Automatic (Dropbox) | Syncs rides directly to Dropbox via Wi-Fi. |
+| **Zwift / MyWhoosh / ROUVY / TPVirtual** | Automatic (PC/Mac Link) | Automatically detects and syncs indoor rides the moment you click "End Ride". |
+| **Local Folder / NAS** | Automatic (Folder Watch) | Map any local server or network folder (`/data/incoming`) to sync `.fit` files directly. |
 
-- **Garmin Edge 1040 Head Unit Emulation**: Default 1-click emulation of a Garmin Edge 1040 bike computer (`3991`) with a distinct emulated serial number (`3991000001`), ensuring Garmin Connect automatically syncs your Wahoo/iGPSPORT rides down to your **Fenix**, **Forerunner**, or **Venu** watch via **Physio TrueUp**.
-- **Pre-Built Disk SVG Route Previews**: Route SVGs and activity summary metrics are pre-calculated on activity import and persisted under `/data/previews/{activity_id}.json`, delivering **0.05ms** detail page rendering with zero FIT decoding overhead.
-- **Automatic Host Timezone Detection**: Automatically detects the host system timezone (`Europe/London` default) with full alias normalization (`Etc/lon`, `london`, `uk`, `gb`, `bst`) and live updates in `/config` without container rebuilds.
-- **Smart Time-Window Polling**: Automatically adjusts poll intervals based on local time of day (overnight quiet window 00:00–06:00, daylight hourly polling, and 15-minute peak evening ride window 17:00–22:00 evaluated in your local timezone).
-- **Streamlined Configuration Interface**: Simple, 1-click configuration form for Garmin account and head unit setup, with advanced raw ID inputs neatly collapsed.
-- Automatically polls Wahoo/Dropbox and iGPSPORT Cloud at separate intervals.
-- Allows Wahoo and iGPSPORT to run together in one container.
-- Uses original FIT activity data and rewrites device metadata with the Garmin FIT SDK.
-- Reuses encrypted transport and persisted Garmin/iGPSPORT sessions.
-- Handles cloud rate limits with bounded retries and exponential backoff.
-- Prevents repeat uploads using source IDs, remote metadata, SHA256, FIT start
-  time, filename, size, stored history, and Garmin duplicate responses.
-- Starts in dry-run mode and provides bounded historical iGPSPORT imports.
-- Includes a password-protected dashboard, activity details, route preview,
-  charts, logs, retries, reprocessing, and cleanup controls.
-- Stores configuration and activity history in persistent Docker volumes.
+---
 
-## How It Works
+## ✨ Key Features
 
-```text
-Wahoo / ELEMNT  --> Dropbox ----\
-                                  \
-                                   FIT to Garmin Bridge
-                                  /        |
-iGPSPORT device --> Cloud -------/         |
-                                            v
-                          deduplicate -> rewrite (Edge 1040) -> upload
-                                            |
-                                            v
-                                      Garmin Connect
-                                            |
-                                            v (Physio TrueUp)
-                                    Fenix / Forerunner Watch
-```
+* **Full Garmin Watch & Physio TrueUp Sync**: Automatically rewrites activity files with a Garmin Edge 1040 profile. Garmin Connect recognizes your ride as recorded on a genuine head unit and syncs your **Training Load, Recovery Time, and VO2 Max** to your Garmin watch (**Fenix, Forerunner, Epix, Venu**).
+* **Virtual Trainer Compatible**: Preserves indoor virtual ride tags for Zwift, MyWhoosh, ROUVY, and TrainingPeaks Virtual, so rides appear as virtual activities while still updating your physiological metrics.
+* **Easy Web Control Panel**: Clean, modern dashboard to view your recent rides, preview routes, check live status, and configure all your platforms in one place.
+* **Garmin Two-Factor Authentication (2FA/MFA) Support**: Enter your 6-digit email or SMS verification code directly in the web browser during initial setup.
+* **Interactive Route Previews**: View GPS map route previews, elevation profiles, and key ride metrics instantly on the dashboard.
+* **Smart Duplicate Prevention**: Advanced multi-layer deduplication ensures you never get duplicate rides uploaded to Garmin Connect.
+* **Safe Dry-Run Mode**: Test your connections and preview your activity list before uploading anything to Garmin Connect.
+* **Smart Background Syncing**: Automatically checks for new rides frequently during peak hours and conserves server resources overnight.
+* **Lightweight & Efficient**: Runs smoothly on any system, from a Raspberry Pi or home NAS (Unraid, Synology, TrueNAS) to a VPS or cloud server.
 
-Normal polling does not delete remote activities. Dropbox deletion only occurs
-after an explicit administrator action. iGPSPORT remote deletion is not supported.
+---
 
-## Requirements
+## 🚀 Quick Start Guide
 
-- A Docker host with Docker Compose
-- A Wahoo/ELEMNT device with Dropbox sharing, an iGPSPORT Cloud account, or both
-- A Garmin Connect account
+### Step 1: Download and Configure
 
-FIT files can contain device identifiers, timestamps, and location history. Treat
-them as private data and never commit them to Git.
-
-## Quick Start
+Clone the repository and create your configuration file:
 
 ```bash
 git clone https://github.com/ntrance/wahoo-garmin-fit-bridge.git
@@ -93,379 +65,140 @@ cd wahoo-garmin-fit-bridge
 cp .env.example .env
 ```
 
-Set at least:
+Open `.env` and set a password for your web dashboard:
 
 ```dotenv
 WEB_USERNAME=admin
-WEB_PASSWORD=replace-with-a-strong-password
-SESSION_SECRET_KEY=replace-with-a-separate-long-random-value
+WEB_PASSWORD=choose-a-secure-password
+SESSION_SECRET_KEY=generate-a-random-secret-key
 DRY_RUN=true
 ```
 
-Generate the session secret with:
+*(Tip: You can generate a random secret key with `openssl rand -hex 32`)*
 
-```bash
-openssl rand -hex 32
-```
+### Step 2: Start the Bridge
 
-Start the bridge:
+Start the container with Docker Compose:
 
 ```bash
 docker compose up -d --build
 ```
 
-Compose first runs a one-shot permission initializer for `/data` and `/appdata`,
-then starts the bridge as the unprivileged `bridge` user. Garmin and source
-accounts can be configured in either order and do not require restarts between
-them.
+### Step 3: Connect Your Accounts
 
-Never use `chmod -R 777` on these directories. They contain account credentials,
-session tokens, FIT location history, and the activity database. Current releases
-automatically repair existing volume ownership and restrict directories to the
-container user during startup.
+1. Open **`http://localhost:8088`** in your browser and log in.
+2. Go to the **Config** tab.
+3. Configure your desired sources:
+   * **Wahoo / Dropbox**: Click *Start Dropbox Setup* and authorize your Dropbox account.
+   * **iGPSPORT Cloud**: Enter your iGPSPORT login credentials.
+   * **COROS Cloud**: Enter your COROS login credentials.
+   * **Garmin Upload**: Enter your Garmin Connect email and password. If your account has 2FA enabled, enter the 6-digit code sent to your email when prompted.
+4. Once you have verified your rides in **Dry-Run mode**, turn Dry-Run off in **Connection Settings** to begin automatic uploads!
 
-The Config page stores runtime choices such as dry-run mode, enabled sources, timezone, and
-polling intervals in `/appdata/runtime.env`. Those saved values override matching
-defaults in `.env`; change them through Config after initial setup. Deployment
-settings such as `TZ` are auto-detected or updated directly in `/config` without needing container rebuilds.
+---
 
-Open `http://localhost:8088`, sign in, and keep dry-run mode enabled until the
-source and Garmin sections all report that setup is complete.
+## 📱 Platform Setup Instructions
 
-## Configure Wahoo and Dropbox
+### 1. Wahoo ELEMNT
+1. In the **Wahoo ELEMNT app** on your phone, go to **Settings ➔ Authorized Apps ➔ Dropbox** and log in.
+2. In the bridge web interface, go to **Config ➔ Dropbox** and complete the 1-click authorization.
+3. Any new ride will now sync automatically from your Wahoo device ➔ Dropbox ➔ Garmin Connect!
 
-First enable Dropbox activity sharing in the Wahoo app using the
-[Wahoo Authorized Apps guide](https://support.wahoofitness.com/hc/en-us/articles/14467471126802-Authorized-Apps-Wahoo-app).
+### 2. iGPSPORT Cloud
+1. In **Config ➔ iGPSPORT Cloud**, enter your iGPSPORT account email/username and password.
+2. Select your account region and click **Save Profile & Test Login**.
+3. Toggle on **iGPSPORT Cloud** under Connection Settings.
 
-Then open **Config > Dropbox**:
+### 3. COROS Cloud (Watches & DURA)
+1. In **Config ➔ COROS Cloud**, enter your COROS account email and password.
+2. Select your account region and click **Save Profile & Test Login**.
+3. Toggle on **COROS Cloud** under Connection Settings.
 
-1. Select **Start Dropbox Setup**.
-2. Approve access in Dropbox.
-3. Dropbox redirects to a `localhost:53682` address. The page may not load; copy
-   the complete address from the browser bar.
-4. Paste it into **Returned localhost URL** and finish setup.
-5. Select **Test Dropbox**.
-6. Enable **Wahoo / Dropbox** under **Connection Settings**.
+### 4. Hammerhead Karoo
+1. Install **Dropsync** on your Karoo via sideloading ([Dropsync on Google Play](https://play.google.com/store/apps/details?id=com.ttxapps.dropsync)).
+2. Configure Dropsync to automatically upload the Karoo `FitFiles` folder (`/sdcard/FitFiles`) to your Dropbox `Apps/WahooFitness` folder whenever connected to Wi-Fi.
 
-The rclone configuration is stored in the persistent `/appdata` volume. New
-Wahoo activities shared to Dropbox are then imported automatically.
+### 5. Indoor Virtual Cycling (Zwift, MyWhoosh, ROUVY, TrainingPeaks Virtual)
+Virtual apps automatically save completed `.fit` files to your computer. You can link your activity folder directly into Dropbox so rides sync automatically:
 
-## Configure iGPSPORT
+* **Windows PC**: Open Command Prompt as Administrator and run the command for your app:
+  ```cmd
+  REM Zwift:
+  mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\Zwift" "%USERPROFILE%\Documents\Zwift\Activities"
 
-Open **Config > Connection Settings**, enable **iGPSPORT Cloud**, and save. Then
-open **Config > iGPSPORT Cloud**:
+  REM MyWhoosh:
+  mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\MyWhoosh" "%USERPROFILE%\Documents\MyWhoosh"
 
-1. Enter the iGPSPORT account identifier and password.
-2. Select the correct account region.
-3. Keep **Only activities recorded after enabling iGPSPORT** for the first sync.
-4. Save the profile and select **Test iGPSPORT login**.
-5. Select **Sync now**.
+  REM ROUVY:
+  mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\Rouvy" "%USERPROFILE%\Documents\ROUVY"
 
-New iGPSPORT activities are polled automatically every 15 minutes by default.
-The source reuses its saved session, stops when it reaches a known activity,
-downloads only unknown FIT files, and backs off after API or rate-limit failures.
+  REM TrainingPeaks Virtual:
+  mklink /J "%USERPROFILE%\Dropbox\Apps\WahooFitness\TPVirtual" "%USERPROFILE%\Documents\TrainingPeaks Virtual\Activities"
+  ```
+* **macOS**: Open Terminal and run:
+  ```bash
+  ln -s ~/Documents/Zwift/Activities ~/Dropbox/Apps/WahooFitness/Zwift
+  ```
 
-Credentials are stored only in owner-readable files under `/appdata/igpsport`.
-They are not written to SQLite, logs, runtime settings, or rendered HTML. Leaving
-the password field blank preserves the existing saved password.
+---
 
-### Historical iGPSPORT Activities
+## 🔐 Garmin 2-Factor Authentication (2FA / MFA)
 
-Historical imports never run automatically. In **Config > iGPSPORT Cloud**, choose
-a start date, optional end date, maximum count, and dry-run or upload mode. Review
-the confirmation page and enter `IMPORT`.
+If your Garmin account has 2-Factor Authentication enabled or if you are logging in from a new cloud/VPS server, Garmin will send a 6-digit one-time code to your email or phone:
 
-Imports are capped at 500 activities and retain all global duplicate checks.
-Start with a small dry-run batch.
+* **Web Browser**: When saving your credentials in **Config ➔ Garmin Upload**, the web interface will display a verification box. Enter your 6-digit code and click **Verify & Complete Setup**.
+* **Terminal / CLI**: You can also authenticate interactively from the command line:
+  ```bash
+  docker compose run --rm -it bridge wahoo-bridge-garmin-login
+  ```
 
-## Multi-Platform & Virtual Trainer Sync (Zwift, Karoo, COROS, MyWhoosh)
+Once verified, your session token is saved securely to `/appdata/garmin/tokens`. The bridge automatically refreshes and reuses this token in the background, so you won't need to enter 2FA codes for future uploads!
 
-The bridge automatically imports and rewrites `.fit` files from other hardware head units and indoor virtual cycling platforms:
+---
 
-* **Virtual Trainers (Zwift / MyWhoosh / TrainingPeaks Virtual / Rouvy)**: Converts FIT headers to a Garmin Edge 1040 while preserving `sub_sport: 27` (Virtual Activity). In Garmin Connect, the ride displays as a virtual indoor ride while computing full **Training Stress Score (TSS)**, **VO2 Max**, and **Training Load** for your Garmin watch.
-* **Physical Head Units (Hammerhead Karoo / COROS DURA / Watches)**: Converts FIT headers to Garmin Edge 1040 for watch **Physio TrueUp** sync.
+## 🔄 Updating to the Latest Version
 
-For complete step-by-step setup guides on Windows PC (`mklink`), macOS (`ln -s`), Hammerhead Karoo Wi-Fi sync, and COROS, see the [Multi-Platform Sync Guide](docs/multi-platform-sync.md).
+The bridge automatically checks for updates and displays a notification in the header when a new version is available.
 
-## Use Both Sources
-
-Wahoo/Dropbox and iGPSPORT can remain enabled together. Each source has its own
-poll schedule, session, source ID, and error state, while sharing one deduplication
-and Garmin upload pipeline.
-
-Do not run a second development container against the same live source accounts.
-Two containers polling the same accounts have separate SQLite histories and can
-race each other before either records the upload.
-
-## Configure Garmin & Head Unit Emulation
-
-Open **Config > Garmin Upload**:
-
-1. Enter your Garmin Connect email and password.
-2. **Emulated Device Target** defaults to **⭐ Garmin Edge 1040 (PREFERRED - Enables Watch Physio TrueUp Sync)** out of the box.
-3. Select **Save Garmin Setup**.
-4. Create or verify the Garmin session.
-
-The profile is stored at `/appdata/garmin/profile.json`; session tokens are stored
-under `/appdata/garmin/tokens`. Both are private persistent data.
-
-### Why Emulate a Garmin Edge 1040?
-
-Garmin Connect evaluates uploaded `.fit` binary headers (`file_id.manufacturer` and `file_id.serial_number`):
-- If a `.fit` file contains **your watch's serial number**, Garmin Connect assumes *"The watch recorded this ride directly and already has it in local flash storage,"* suppressing Physio TrueUp sync.
-- Emulating a **Garmin Edge 1040** bike computer with a distinct fake serial number (`3991000001`) causes Garmin Connect to treat the ride as recorded on a separate head unit. Garmin Connect then automatically pushes the activity down to your **Fenix**, **Forerunner**, or **Venu** watch via **Physio TrueUp** during your next Bluetooth/Wi-Fi sync!
-
-For users who own a physical Garmin device and want activities to match its exact hardware identifiers, expand **Advanced Device Customization** in `/config` to upload a genuine `.fit` file or edit raw device IDs manually.
-
-### Sync Uploaded Activities to Your Garmin Device
-
-[Physio TrueUp](https://support.garmin.com/en-IN/?faq=g4zagaDmtJ0luYPPvEuwz9)
-must be active for Garmin Connect to sync supported fitness and training data
-back to a compatible Garmin device. Garmin devices that support Unified Training
-Status have Physio TrueUp enabled automatically. On other compatible devices,
-enable it in Garmin Connect under the device's **General**, **Device Settings**,
-**My Stats**, or **System** settings.
-
-After the bridge uploads an activity, sync your Garmin device with Garmin Connect over Bluetooth or Wi-Fi.
-The activity will sync down to your watch history, Training Load, VO2 Max, Recovery Time, and Load Focus.
-
-## Enable Uploads
-
-While dry-run mode is enabled, sync each source and confirm:
-
-- Activity dates and distances are correct.
-- The expected source is shown.
-- The intended Garmin device is selected.
-- No unexpected duplicates appear.
-
-When the checks look correct, open **Config > Connection Settings**, switch
-**Dry-run mode** off, and select **Save Settings**. The change applies
-immediately to future manual syncs and background polling; the container does
-not need to be rebuilt or restarted.
-
-`DRY_RUN` in `.env` supplies the initial default for a new installation. After
-settings have been saved in the web interface, the persistent
-`/appdata/runtime.env` value takes precedence. Use the Config page for later
-changes.
-
-Dry-run records are not automatically uploaded later. Reprocess an older activity
-only after confirming it is not already present in Garmin Connect.
-
-## Normal Operation
-
-After setup, no routine Config changes are required. Enabled sources are polled
-automatically and newly downloaded activities are uploaded to Garmin Connect.
-The Dashboard sync button can request an immediate check but is not required for
-normal operation. Saved Garmin and iGPSPORT sessions are reused and refreshed by
-their client libraries where supported. Return to Config only when credentials
-change, an authentication error requests attention, or you want to change sources,
-dry-run mode, or polling intervals.
-
-## Duplicate Protection
-
-The bridge checks source activity IDs, remote metadata, FIT SHA256, activity
-start time, filename and size, stored history, and Garmin conflict responses.
-Known source items are skipped before downloading where possible.
-
-No duplicate system can identify every manually edited or re-exported activity.
-Use dry-run mode when connecting an existing account or importing history.
-
-## Persistent Data
-
-Both paths must survive container replacement:
-
-| Container path | Contents |
-| --- | --- |
-| `/data` | Incoming, processing, uploaded, duplicate, failed, and archived FIT files |
-| `/appdata` | SQLite history, settings, source credentials, sessions, Garmin profile, and logs |
-
-Always mount persistent Docker volumes at both paths. Losing `/appdata` removes
-deduplication history and authentication state. Back up both volumes before
-upgrades. Backups contain credentials, tokens, device IDs, and location history,
-so encrypt them and keep them outside the repository.
-
-## Security
-
-The web interface includes signed HttpOnly cookies, CSRF protection, login rate
-limiting, security headers, bounded uploads, private credential files, and output
-redaction. The container runs as an unprivileged user with a read-only root
-filesystem, dropped Linux capabilities, and `no-new-privileges`. A one-shot
-initializer receives only the ownership-related capabilities needed to secure the
-persistent volumes, has no network access, and exits before the bridge starts.
-
-For stronger password storage:
-
-```bash
-docker compose run --rm bridge wahoo-bridge-hash-password
-```
-
-Set `WEB_PASSWORD_HASH`, leave `WEB_PASSWORD` empty, terminate HTTPS at a trusted
-reverse proxy, and do not expose port `8088` directly to the public internet.
-
-Never commit `.env`, `/data`, `/appdata`, databases, logs, credentials, tokens,
-real FIT files, or Garmin unit IDs. See [SECURITY.md](SECURITY.md) for reporting
-instructions.
-
-Every push and pull request runs tests, Ruff, Bandit, `pip-audit`, a Docker build,
-Trivy image scanning, and Trivy deployment configuration scanning.
-
-## Releases and Container Images
-
-[GitHub Releases](https://github.com/ntrance/wahoo-garmin-fit-bridge/releases)
-are the clearest place for users to see stable versions, release notes, and
-upgrade information. Pushing a version tag (`v1.2.0`) automatically builds
-container images, publishes them to GHCR, and creates a GitHub Release with
-auto-generated release notes.
-
-Each version tag publishes a ready-to-run Linux AMD64 image to GitHub
-Container Registry with semver tags:
-
-```bash
-docker pull ghcr.io/ntrance/wahoo-garmin-fit-bridge:1.2.0   # pinned
-docker pull ghcr.io/ntrance/wahoo-garmin-fit-bridge:1.2     # minor
-docker pull ghcr.io/ntrance/wahoo-garmin-fit-bridge:1       # major
-docker pull ghcr.io/ntrance/wahoo-garmin-fit-bridge:latest   # latest stable
-```
-
-Use a fixed version tag in production instead of `latest` so upgrades are
-intentional.
-
-## Updates
-
-⭐ Star the repository if you find the project useful.
-
-Starring a repository does not automatically notify you when a new version is
-released. To receive release notifications:
-
-1. Open the [GitHub repository](https://github.com/ntrance/wahoo-garmin-fit-bridge).
-2. Select **Watch**.
-3. Select **Custom**.
-4. Enable **Releases**.
-
-The bridge also checks periodically for newer stable releases and displays a
-notification in the dashboard when an update is available.
-
-## Updating
-
-`/data` and `/appdata` contain all persistent state including activity history,
-credentials, sessions, and configuration. These volumes persist through
-container replacement. Always back up both volumes before upgrading.
-
-### GHCR / production install (`docker-compose.ghcr.yml`)
-
-```bash
-docker compose -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.ghcr.yml up -d
-```
-
-### Pinned version upgrade
-
-Change `BRIDGE_VERSION` in `.env` from the current version to the target version:
-
-```dotenv
-BRIDGE_VERSION=1.3.0
-```
-
-Then pull and restart:
-
-```bash
-docker compose -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.ghcr.yml up -d
-```
-
-### Git checkout / source build
-
+### Using Docker Compose (Source Build)
 ```bash
 cd wahoo-garmin-fit-bridge
 git pull --ff-only
 docker compose up -d --build
 ```
 
-## Deployment
-
-### Docker Compose (source build)
-
-Use `docker-compose.yml` on a normal Docker host. This builds the image from
-the checked-out source:
-
+### Using Pre-Built GHCR Image (`docker-compose.ghcr.yml`)
 ```bash
-docker compose up -d --build
-```
-
-### Docker Compose (GHCR image)
-
-Use `docker-compose.ghcr.yml` for production deployments that use the published
-GHCR image without requiring a local build:
-
-```bash
+docker compose -f docker-compose.ghcr.yml pull
 docker compose -f docker-compose.ghcr.yml up -d
 ```
 
-Set `BRIDGE_VERSION` in `.env` to pin a specific release:
+---
 
-```dotenv
-BRIDGE_VERSION=1.2.0
-```
+## 📁 Persistent Data & Backup
 
-### Dokploy
+All configuration, session tokens, and activity history are safely stored in persistent Docker volumes:
 
-Use `docker-compose.dokploy.yml`, mount persistent volumes at `/data` and
-`/appdata` before the first production deployment, and provide secrets through
-Dokploy's environment settings.
+* `/appdata`: Database, settings, saved sessions, and logs.
+* `/data`: Incoming, processed, and uploaded FIT files.
 
-## Limitations
+To back up your setup, simply back up the `./data` and `./appdata` directories.
 
-- Intended for personal, self-hosted use.
-- Historical Wahoo activities are not automatically backfilled by Wahoo.
-- Garmin and iGPSPORT may change their private authentication or upload endpoints.
-- Garmin decides how imported device information is displayed and whether an
-  activity qualifies for a badge or challenge.
-- Uploading an activity to Garmin Connect does not guarantee that Garmin will
-  download it to a watch or recalculate device-side Recovery Time, Acute Load,
-  Training Effect, or activity history. Do not copy rewritten FIT files directly
-  into a Garmin device; that workflow is unsupported and can create duplicates.
-- A malformed FIT file may require a fresh export from the original source.
+---
 
-## Syncing Historical Wahoo Activities
+## ☕ Support the Project
 
-Automatic Wahoo sharing to Dropbox syncs newly recorded rides after sharing is configured in the ELEMNT companion app. To upload past or historical rides recorded prior to enabling automatic sharing:
+FIT to Garmin Bridge is open source and community-supported. If this project saves you time and improves your training workflow, consider giving it a ⭐ on GitHub or supporting ongoing development on [Ko-fi](https://ko-fi.com/ntr4nce)!
 
-1. Connect your Wahoo ELEMNT device to your computer via USB (or access its internal storage).
-2. Locate the `.fit` files in the device storage directory (e.g., `exports` or `exports/fit`).
-3. Copy the historical `.fit` files directly into your connected Dropbox folder (`Apps/WahooFitness`).
-4. The bridge will automatically discover, deduplicate, rewrite, and upload your historical rides to Garmin Connect during the next sync cycle.
+[![Support on Ko-fi](https://storage.ko-fi.com/cdn/kofi3.png?v=3)](https://ko-fi.com/ntr4nce)
 
-## Performance & Hardware Optimization
+---
 
-The bridge features auto-detecting hardware profiles and optimized SQLite write handling for running efficiently on low-resource devices (Raspberry Pi 3, Pi 4, Pi 5, or low-cost VPS instances):
+## 📄 License & Acknowledgements
 
-- **SQLite WAL & Normal Synchronization**: Configured with `PRAGMA synchronous = NORMAL` and in-memory temporary storage to minimize random SD card/flash disk writes and prevent I/O bottlenecks.
-- **LRU Preview Caching**: Route SVGs and activity previews are cached after initial generation, reducing repeated preview load times from **~2,400ms to 0ms**.
-- **Smart Time-Window Polling**: Automatically adjusts poll intervals based on time of day (overnight quiet window 00:00–06:00, daylight hourly polling, and 15-minute polling during peak evening ride hours 17:00–22:00).
-- **Hardware Profile Auto-Detection**: Automatically tunes background thread pool concurrency based on available system memory (`HARDWARE_PROFILE=low|balanced|high`).
+Distributed under the [MIT License](LICENSE). Built with:
+* [Garmin FIT SDK](https://developer.garmin.com/fit/overview/)
+* [python-garminconnect](https://github.com/cyberjunky/python-garminconnect)
+* [rclone](https://rclone.org/)
 
-## Development
-
-```bash
-python -m pip install -e ".[dev]"
-pytest -q
-ruff check .
-```
-
-Contributions must not include real FIT activities, credentials, session tokens,
-unit IDs, deployment addresses, or other personal data.
-
-## Support
-
-If this bridge saves you time, you can support development on
-[Ko-fi](https://ko-fi.com/ntr4nce).
-
-## License and Acknowledgements
-
-This bridge is released under the [MIT License](LICENSE). It uses the
-[Garmin FIT SDK](https://developer.garmin.com/fit/overview/),
-[garminconnect](https://github.com/cyberjunky/python-garminconnect), and
-[rclone](https://rclone.org/). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-Wahoo, ELEMNT, iGPSPORT, Garmin, Garmin Connect, Dropbox, and their respective
-marks are the property of their owners.
+> **Disclaimer**: This is an unofficial community project. It is not affiliated with, maintained, or endorsed by Wahoo Fitness, iGPSPORT, COROS, Hammerhead, Zwift, or Garmin Ltd.
