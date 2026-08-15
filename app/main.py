@@ -12,7 +12,14 @@ from typing import Any
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+    Response,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -23,6 +30,12 @@ from app.garmin_upload import (
     complete_garmin_mfa_session,
     friendly_upload_error,
     start_garmin_session_login,
+)
+from app.log_viewer import (
+    filter_entries,
+    get_logs_summary,
+    parse_log_file,
+    purge_logs,
 )
 from app.fit_preview import (
     _build_activity_preview_cached,
@@ -1274,11 +1287,69 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         return JSONResponse(result)
 
     @app.get("/logs", response_class=HTMLResponse)
-    async def logs(request: Request, _auth: None = Depends(require_auth)) -> HTMLResponse:
+    async def logs(
+        request: Request,
+        category: str = "all",
+        level: str = "all",
+        q: str = "",
+        view: str = "formatted",
+        flash: str = "",
+        _auth: None = Depends(require_auth),
+    ) -> HTMLResponse:
+        settings = request.app.state.settings
+        all_entries = parse_log_file(settings.log_file, max_lines=2000)
+        summary = get_logs_summary(all_entries)
+        filtered_entries = filter_entries(
+            all_entries,
+            level=level,
+            category=category,
+            search=q,
+        )
+        raw_logs = "\n".join(e.raw for e in filtered_entries)
+        if not raw_logs:
+            raw_logs = "No log entries found matching your filter criteria."
+
         return templates.TemplateResponse(
             request,
             "logs.html",
-            context(request) | {"logs": _tail(request.app.state.settings.log_file)},
+            context(request)
+            | {
+                "entries": filtered_entries,
+                "summary": summary,
+                "current_category": category,
+                "current_level": level,
+                "current_search": q,
+                "current_view": view,
+                "raw_logs": raw_logs,
+                "flash_message": "All application logs were successfully purged." if flash == "purged" else "",
+            },
+        )
+
+    @app.post("/logs/purge")
+    async def purge_logs_route(
+        request: Request,
+        _auth: None = Depends(require_auth),
+        _csrf: None = Depends(require_csrf),
+    ) -> Response:
+        settings = request.app.state.settings
+        purge_logs(settings)
+        return RedirectResponse(
+            url="/logs?flash=purged",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    @app.get("/logs/download")
+    async def download_logs(
+        request: Request,
+        _auth: None = Depends(require_auth),
+    ) -> Response:
+        settings = request.app.state.settings
+        if not settings.log_file.exists():
+            return PlainTextResponse("No logs recorded yet.", media_type="text/plain")
+        return FileResponse(
+            path=settings.log_file,
+            media_type="text/plain",
+            filename="fit-to-garmin-bridge.log",
         )
 
     @app.get("/help", response_class=HTMLResponse)

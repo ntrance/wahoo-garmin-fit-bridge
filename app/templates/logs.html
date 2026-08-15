@@ -1,6 +1,435 @@
 {% extends "base.html" %}
-{% block content %}
-<h1 class="h3 mb-3">Logs</h1>
-<pre class="border rounded p-3 bg-light" style="white-space: pre-wrap;">{{ logs }}</pre>
-{% endblock %}
 
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <div>
+    <h1 class="h3 mb-0">Logs & System Events</h1>
+    <p class="text-muted small mb-0">Live background sync, platform API requests, and event history.</p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="/logs/download" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" title="Download full raw log file">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16">
+        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
+        <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
+      </svg>
+      <span>Download .log</span>
+    </a>
+    <button type="button" id="copyLogsBtn" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" title="Copy currently visible log lines to clipboard">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-clipboard" viewBox="0 0 16 16">
+        <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/>
+        <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0z"/>
+      </svg>
+      <span id="copyLogsBtnText">Copy Visible</span>
+    </button>
+    <button type="button" class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#purgeLogsModal" title="Purge and clear all log files">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-trash3" viewBox="0 0 16 16">
+        <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
+      </svg>
+      <span>Purge Logs</span>
+    </button>
+  </div>
+</div>
+
+{% if flash_message %}
+<div class="alert alert-success alert-dismissible fade show py-2 px-3 mb-3 d-flex align-items-center gap-2 small" role="alert">
+  <span>✅ {{ flash_message }}</span>
+  <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+<!-- Category Quick Filter Pills -->
+<div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+  <span class="text-muted small fw-semibold">Categories:</span>
+  <button type="button" class="btn btn-sm btn-outline-secondary log-category-pill active" data-category="all">
+    All <span class="badge bg-secondary ms-1">{{ summary.total }}</span>
+  </button>
+  {% for cat in summary.categories %}
+    {% if cat.count > 0 %}
+    <button type="button" class="btn btn-sm btn-outline-secondary log-category-pill" data-category="{{ cat.id }}">
+      {{ cat.icon }} {{ cat.label }} <span class="badge bg-secondary ms-1">{{ cat.count }}</span>
+    </button>
+    {% endif %}
+  {% endfor %}
+  {% if summary.warnings_and_errors > 0 %}
+  <button type="button" class="btn btn-sm btn-outline-warning text-dark log-category-pill" data-level="WARNER">
+    ⚠️ Warnings & Errors <span class="badge bg-warning text-dark ms-1">{{ summary.warnings_and_errors }}</span>
+  </button>
+  {% endif %}
+</div>
+
+<!-- Controls Bar -->
+<div class="card mb-3 border bg-light shadow-sm">
+  <div class="card-body p-2">
+    <div class="row g-2 align-items-center">
+      <!-- Search Input -->
+      <div class="col-12 col-md-5">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-white">🔍</span>
+          <input
+            type="text"
+            id="logSearchInput"
+            class="form-control"
+            placeholder="Search logs by keyword, filename, activity ID, or status..."
+            value="{{ current_search }}"
+            autocomplete="off"
+          >
+          <button class="btn btn-outline-secondary d-none" type="button" id="clearSearchBtn" title="Clear search">✕</button>
+        </div>
+      </div>
+
+      <!-- Level Filter -->
+      <div class="col-6 col-md-2">
+        <select id="logLevelSelect" class="form-select form-select-sm">
+          <option value="all">All Levels</option>
+          <option value="INFO">INFO ({{ summary.level_counts.INFO }})</option>
+          <option value="WARNING">WARNING ({{ summary.level_counts.WARNING }})</option>
+          <option value="ERROR">ERROR ({{ summary.level_counts.ERROR }})</option>
+          <option value="DEBUG">DEBUG ({{ summary.level_counts.DEBUG }})</option>
+        </select>
+      </div>
+
+      <!-- Category Filter -->
+      <div class="col-6 col-md-3">
+        <select id="logCategorySelect" class="form-select form-select-sm">
+          <option value="all">All Categories</option>
+          {% for cat in summary.categories %}
+          <option value="{{ cat.id }}">{{ cat.icon }} {{ cat.label }} ({{ cat.count }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- View Switcher -->
+      <div class="col-12 col-md-2 text-md-end">
+        <div class="btn-group btn-group-sm w-100" role="group" aria-label="View toggle">
+          <button type="button" class="btn btn-outline-primary active" id="viewFormattedBtn" title="Formatted Card Stream">
+            Stream
+          </button>
+          <button type="button" class="btn btn-outline-primary" id="viewRawBtn" title="Raw Terminal Output">
+            Raw Text
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Status line -->
+<div class="d-flex justify-content-between align-items-center mb-2 px-1">
+  <span class="text-muted small" id="logCountDisplay">
+    Showing <strong>{{ entries|length }}</strong> of <strong>{{ summary.total }}</strong> log entries
+  </span>
+  <span class="text-muted small">
+    Max buffer: <strong>2,000 lines</strong>
+  </span>
+</div>
+
+<!-- Formatted Stream View -->
+<div id="formattedLogsContainer" class="card border shadow-sm mb-4">
+  <div class="card-body p-0">
+    <div class="table-responsive" style="max-height: 700px; overflow-y: auto;">
+      <table class="table table-hover table-sm mb-0 align-middle font-monospace" style="font-size: 0.84rem;">
+        <thead class="table-light sticky-top border-bottom">
+          <tr>
+            <th style="width: 175px;">Timestamp</th>
+            <th style="width: 90px;">Level</th>
+            <th style="width: 170px;">Category</th>
+            <th>Message</th>
+          </tr>
+        </thead>
+        <tbody id="logsTableBody">
+          {% for entry in entries %}
+          <tr
+            class="log-row"
+            data-level="{{ entry.level }}"
+            data-category="{{ entry.category }}"
+            data-text="{{ entry.raw|lower }}"
+          >
+            <td class="text-secondary text-nowrap user-select-all" style="font-size: 0.78rem;">
+              {{ entry.timestamp or '-' }}
+            </td>
+            <td>
+              {% if entry.level == 'INFO' %}
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-1.5 py-0.5">INFO</span>
+              {% elif entry.level == 'WARNING' %}
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-1.5 py-0.5">WARN</span>
+              {% elif entry.level in ['ERROR', 'CRITICAL'] %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-1.5 py-0.5">ERROR</span>
+              {% elif entry.level == 'DEBUG' %}
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-1.5 py-0.5">DEBUG</span>
+              {% else %}
+                <span class="badge bg-light text-dark border px-1.5 py-0.5">{{ entry.level }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge bg-light text-dark border text-nowrap px-1.5 py-0.5" title="Logger: {{ entry.logger }}">
+                {{ entry.category_icon }} {{ entry.category_label }}
+              </span>
+            </td>
+            <td class="user-select-all text-break" style="white-space: pre-wrap;">{{ entry.message }}</td>
+          </tr>
+          {% else %}
+          <tr id="emptyLogsRow">
+            <td colspan="4" class="text-center py-4 text-muted">
+              No logs recorded yet.
+            </td>
+          </tr>
+          {% endfor %}
+          <tr id="noMatchesRow" class="d-none">
+            <td colspan="4" class="text-center py-4 text-muted">
+              🔍 No log entries matched your filter. Try adjusting your search query or category filter.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Raw Terminal View (hidden by default) -->
+<div id="rawLogsContainer" class="d-none card border shadow-sm mb-4">
+  <div class="card-header bg-dark text-light py-2 px-3 d-flex justify-content-between align-items-center font-monospace small">
+    <span>Terminal Output (<code>/appdata/logs/app.log</code>)</span>
+    <span class="text-secondary">Read-only buffer</span>
+  </div>
+  <div class="card-body p-0 bg-dark">
+    <pre id="rawLogsPre" class="m-0 p-3 text-light font-monospace" style="max-height: 700px; overflow-y: auto; white-space: pre-wrap; font-size: 0.82rem;">{{ raw_logs }}</pre>
+  </div>
+</div>
+
+<!-- Purge Confirmation Modal -->
+<div class="modal fade" id="purgeLogsModal" tabindex="-1" aria-labelledby="purgeLogsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-bottom">
+        <h5 class="modal-title text-danger d-flex align-items-center gap-2" id="purgeLogsModalLabel">
+          <span>🗑️</span> Purge All Logs
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2">
+          Are you sure you want to clear the application logs?
+        </p>
+        <div class="alert alert-warning py-2 px-3 small mb-0">
+          ⚠️ <strong>Warning:</strong> This will erase the current log file (<code>app.log</code>) and all rotated backup files on disk. This action cannot be undone.
+        </div>
+      </div>
+      <div class="modal-footer border-top">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="/logs/purge" class="m-0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn btn-danger btn-sm d-flex align-items-center gap-1">
+            <span>🗑️ Confirm & Purge Logs</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const searchInput = document.getElementById("logSearchInput");
+  const clearSearchBtn = document.getElementById("clearSearchBtn");
+  const levelSelect = document.getElementById("logLevelSelect");
+  const categorySelect = document.getElementById("logCategorySelect");
+  const categoryPills = document.querySelectorAll(".log-category-pill");
+  const logRows = document.querySelectorAll(".log-row");
+  const noMatchesRow = document.getElementById("noMatchesRow");
+  const countDisplay = document.getElementById("logCountDisplay");
+  const totalCount = {{ summary.total }};
+
+  const viewFormattedBtn = document.getElementById("viewFormattedBtn");
+  const viewRawBtn = document.getElementById("viewRawBtn");
+  const formattedContainer = document.getElementById("formattedLogsContainer");
+  const rawContainer = document.getElementById("rawLogsContainer");
+  const rawLogsPre = document.getElementById("rawLogsPre");
+  const copyBtn = document.getElementById("copyLogsBtn");
+  const copyBtnText = document.getElementById("copyLogsBtnText");
+
+  let currentCategory = "{{ current_category }}";
+  let currentLevel = "{{ current_level }}";
+  let currentSearch = searchInput.value.trim().toLowerCase();
+
+  function applyFilters() {
+    let visibleCount = 0;
+    const visibleLines = [];
+
+    logRows.forEach(row => {
+      const rowLevel = row.getAttribute("data-level");
+      const rowCategory = row.getAttribute("data-category");
+      const rowText = row.getAttribute("data-text");
+
+      // Check level
+      let levelMatch = false;
+      if (currentLevel === "all") {
+        levelMatch = true;
+      } else if (currentLevel === "WARNER") {
+        levelMatch = (rowLevel === "WARNING" || rowLevel === "ERROR" || rowLevel === "CRITICAL");
+      } else {
+        levelMatch = (rowLevel === currentLevel);
+      }
+
+      // Check category
+      let categoryMatch = (currentCategory === "all" || rowCategory === currentCategory);
+
+      // Check search text
+      let searchMatch = !currentSearch || rowText.includes(currentSearch);
+
+      if (levelMatch && categoryMatch && searchMatch) {
+        row.classList.remove("d-none");
+        visibleCount++;
+        visibleLines.push(row.innerText.replace(/\s+/g, ' '));
+      } else {
+        row.classList.add("d-none");
+      }
+    });
+
+    if (noMatchesRow) {
+      if (visibleCount === 0 && totalCount > 0) {
+        noMatchesRow.classList.remove("d-none");
+      } else {
+        noMatchesRow.classList.add("d-none");
+      }
+    }
+
+    if (countDisplay) {
+      countDisplay.innerHTML = `Showing <strong>${visibleCount}</strong> of <strong>${totalCount}</strong> log entries`;
+    }
+
+    if (clearSearchBtn) {
+      if (currentSearch) {
+        clearSearchBtn.classList.remove("d-none");
+      } else {
+        clearSearchBtn.classList.add("d-none");
+      }
+    }
+  }
+
+  // Search input handler with debounce
+  if (searchInput) {
+    searchInput.addEventListener("input", function () {
+      currentSearch = this.value.trim().toLowerCase();
+      applyFilters();
+    });
+  }
+
+  if (clearSearchBtn) {
+    clearSearchBtn.addEventListener("click", function () {
+      searchInput.value = "";
+      currentSearch = "";
+      applyFilters();
+      searchInput.focus();
+    });
+  }
+
+  // Level select handler
+  if (levelSelect) {
+    levelSelect.addEventListener("change", function () {
+      currentLevel = this.value;
+      updatePills();
+      applyFilters();
+    });
+  }
+
+  // Category select handler
+  if (categorySelect) {
+    categorySelect.addEventListener("change", function () {
+      currentCategory = this.value;
+      updatePills();
+      applyFilters();
+    });
+  }
+
+  // Category pills handler
+  categoryPills.forEach(pill => {
+    pill.addEventListener("click", function () {
+      const cat = this.getAttribute("data-category");
+      const lvl = this.getAttribute("data-level");
+
+      if (lvl === "WARNER") {
+        currentLevel = "WARNER";
+        currentCategory = "all";
+        if (levelSelect) levelSelect.value = "all";
+        if (categorySelect) categorySelect.value = "all";
+      } else if (cat) {
+        currentCategory = cat;
+        currentLevel = "all";
+        if (categorySelect) categorySelect.value = cat;
+        if (levelSelect) levelSelect.value = "all";
+      }
+
+      updatePills();
+      applyFilters();
+    });
+  });
+
+  function updatePills() {
+    categoryPills.forEach(pill => {
+      const cat = pill.getAttribute("data-category");
+      const lvl = pill.getAttribute("data-level");
+
+      if (currentLevel === "WARNER" && lvl === "WARNER") {
+        pill.classList.add("active");
+      } else if (currentLevel !== "WARNER" && cat === currentCategory) {
+        pill.classList.add("active");
+      } else {
+        pill.classList.remove("active");
+      }
+    });
+  }
+
+  // View toggle
+  if (viewFormattedBtn && viewRawBtn) {
+    viewFormattedBtn.addEventListener("click", function () {
+      viewFormattedBtn.classList.add("active");
+      viewRawBtn.classList.remove("active");
+      formattedContainer.classList.remove("d-none");
+      rawContainer.classList.add("d-none");
+    });
+
+    viewRawBtn.addEventListener("click", function () {
+      viewRawBtn.classList.add("active");
+      viewFormattedBtn.classList.remove("active");
+      rawContainer.classList.remove("d-none");
+      formattedContainer.classList.add("d-none");
+    });
+  }
+
+  // Copy visible logs
+  if (copyBtn) {
+    copyBtn.addEventListener("click", function () {
+      const visibleTexts = [];
+      logRows.forEach(row => {
+        if (!row.classList.contains("d-none")) {
+          const cells = row.querySelectorAll("td");
+          if (cells.length >= 4) {
+            const time = cells[0].innerText.trim();
+            const lvl = cells[1].innerText.trim();
+            const cat = cells[2].innerText.trim();
+            const msg = cells[3].innerText.trim();
+            visibleTexts.push(`${time} ${lvl} [${cat}] ${msg}`);
+          }
+        }
+      });
+
+      const textToCopy = visibleTexts.length > 0 ? visibleTexts.join("\n") : (rawLogsPre ? rawLogsPre.innerText : "");
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        copyBtnText.innerText = "Copied!";
+        setTimeout(() => {
+          copyBtnText.innerText = "Copy Visible";
+        }, 2000);
+      }).catch(() => {
+        copyBtnText.innerText = "Failed";
+        setTimeout(() => {
+          copyBtnText.innerText = "Copy Visible";
+        }, 2000);
+      });
+    });
+  }
+
+  // Initial filter run
+  applyFilters();
+});
+</script>
+{% endblock %}

@@ -184,7 +184,7 @@ class BridgeService:
                 )
             fit_path.unlink(missing_ok=True)
             remove_source_sidecar(fit_path)
-            logger.info(
+            logger.debug(
                 "Removed repeated source file from %s already recorded as activity %s: %s",
                 source.source_display_name,
                 existing_hash["id"],
