@@ -788,3 +788,27 @@ def test_help_page(settings):
         assert "Dropsync" in res.text
 
 
+def test_dashboard_activity_rows_clickable(settings):
+    app = create_app(settings, start_background=False)
+    db = Database(settings.db_path)
+    db.init()
+    activity = db.create_activity(
+        source_path="/data/incoming/ride_click.fit",
+        current_path="/data/incoming/ride_click.fit",
+        filename="ride_click.fit",
+        sha256="hash_click",
+        file_size=2048,
+        activity_start_time="2026-08-16T10:00:00Z",
+        status="uploaded",
+    )
+    with TestClient(app) as client:
+        res = client.get("/")
+        assert res.status_code == 200
+        assert f'class="activity-row"' in res.text
+        assert f'data-activity-url="/activity/{activity["id"]}"' in res.text
+        assert f'role="link"' in res.text
+        assert f'aria-label="View activity {activity["id"]}"' in res.text
+        assert "auxclick" in res.text
+
+
+
