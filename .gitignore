@@ -24,3 +24,7 @@ __pycache__/
 .coverage
 htmlcov/
 .DS_Store
+.notes.md
+*.notes.md
+.notes/
+
