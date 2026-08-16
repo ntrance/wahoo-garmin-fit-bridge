@@ -790,7 +790,7 @@ def test_help_page(settings):
 
 def test_dashboard_activity_rows_clickable(settings):
     app = create_app(settings, start_background=False)
-    db = Database(settings.db_path)
+    db = Database(settings.sqlite_path)
     db.init()
     activity = db.create_activity(
         source_path="/data/incoming/ride_click.fit",
