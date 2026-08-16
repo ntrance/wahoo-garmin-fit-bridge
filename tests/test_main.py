@@ -804,9 +804,9 @@ def test_dashboard_activity_rows_clickable(settings):
     with TestClient(app) as client:
         res = client.get("/")
         assert res.status_code == 200
-        assert f'class="activity-row"' in res.text
+        assert 'class="activity-row"' in res.text
         assert f'data-activity-url="/activity/{activity["id"]}"' in res.text
-        assert f'role="link"' in res.text
+        assert 'role="link"' in res.text
         assert f'aria-label="View activity {activity["id"]}"' in res.text
         assert "auxclick" in res.text
 
