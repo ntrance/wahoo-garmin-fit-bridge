@@ -64,7 +64,13 @@
       </thead>
       <tbody>
         {% for activity in cleanup_activities %}
-        <tr>
+        <tr
+          class="activity-row"
+          data-activity-url="/activity/{{ activity.id }}"
+          role="link"
+          tabindex="0"
+          aria-label="View activity {{ activity.id }}"
+        >
           <td><a href="/activity/{{ activity.id }}">{{ activity.id }}</a></td>
           <td>{{ activity.filename }}</td>
           <td><span class="badge bg-body-secondary text-body border">{{ activity.source_display_name or activity.source_type or "Local / legacy" }}</span></td>
@@ -118,7 +124,13 @@
         </td>
       </tr>
       {% for activity in month_activities %}
-      <tr>
+      <tr
+        class="activity-row"
+        data-activity-url="/activity/{{ activity.id }}"
+        role="link"
+        tabindex="0"
+        aria-label="View activity {{ activity.id }}"
+      >
         <td><a href="/activity/{{ activity.id }}">{{ activity.id }}</a></td>
         <td>{{ activity.filename }}</td>
         <td><span class="badge bg-body-secondary text-body border">{{ activity.source_display_name or activity.source_type or "Local / legacy" }}</span></td>
@@ -173,4 +185,23 @@
   </ul>
 </nav>
 {% endif %}
+
+<script>
+  document.querySelectorAll(".activity-row[data-activity-url]").forEach(function(row) {
+    function openActivity() {
+      window.location.href = row.dataset.activityUrl;
+    }
+
+    row.addEventListener("click", function(event) {
+      if (event.target.closest("a, button, input, select, textarea, form, label")) return;
+      openActivity();
+    });
+
+    row.addEventListener("keydown", function(event) {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openActivity();
+    });
+  });
+</script>
 {% endblock %}
