@@ -26,13 +26,12 @@ services:
   bridge:
     build: .
     container_name: wahoo-garmin-fit-bridge
-    env_file:
-      - path: .env
-        required: false
-      - path: ./appdata/runtime.env
-        required: false
     environment:
       PYTHONDONTWRITEBYTECODE: "1"
+      WEB_USERNAME:
+      WEB_PASSWORD:
+      SESSION_SECRET_KEY:
+      DRY_RUN:
     depends_on:
       volume-permissions:
         condition: service_completed_successfully
