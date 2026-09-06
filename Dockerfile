@@ -1,4 +1,4 @@
-FROM rclone/rclone:1.75.0 AS rclone
+FROM rclone/rclone:1.75.1 AS rclone
 
 FROM python:3.12-slim-bookworm
 
