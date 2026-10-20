@@ -97,7 +97,7 @@ def test_web_routes_garmin_mfa_flow(settings):
                 "garmin_username": "rider@example.com",
                 "garmin_password": "secretpassword",
                 "garmin_profile_name": "wahoo",
-                "garmin_unit_id": "3991000001",
+                "garmin_unit_id": "3843000001",
                 "detected_device_id": "edge_1040",
             },
             follow_redirects=True,

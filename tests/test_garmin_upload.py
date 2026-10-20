@@ -137,7 +137,7 @@ def test_zwift_virtual_activity_rewrite_applies_edge1040_identity_and_preserves_
             },
         )
     source.write_bytes(encoder.close())
-    profile = GarminProfile("edge1040", "rider@example.com", "secret", 1, 3991, 3991000001, 2118)
+    profile = GarminProfile("edge1040", "rider@example.com", "secret", 1, 3843, 3843000001, 2118)
 
     success, note, record_count = _rewrite_wahoo_fit(source, profile, "Garmin Edge 1040")
 
@@ -153,7 +153,7 @@ def test_zwift_virtual_activity_rewrite_applies_edge1040_identity_and_preserves_
     session = messages["session_mesgs"][0]
 
     assert file_id["manufacturer"] in {"garmin", 1}
-    assert file_id["product"] == 3991
-    assert file_id["serial_number"] == 3991000001
+    assert file_id["product"] == 3843
+    assert file_id["serial_number"] == 3843000001
     assert session["sub_sport"] == "virtual_activity"
 

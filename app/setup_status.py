@@ -243,7 +243,7 @@ def save_garmin_profile(
     if not garmin_username.strip():
         return CommandResult(False, "Garmin setup", "Garmin username/email is required.")
     if not product_id.strip():
-        product_id = "3991"  # Default to Garmin Edge 1040
+        product_id = "3843"  # Default to Garmin Edge 1040
     if not unit_id.strip():
         unit_id = f"{product_id.strip()}000001"
 

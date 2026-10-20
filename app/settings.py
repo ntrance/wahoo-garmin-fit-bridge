@@ -197,7 +197,7 @@ class Settings:
                 os.getenv("FIT_FILE_FAKER_PROFILE", "wahoo"),
             ),
             garmin_device_name=os.getenv("GARMIN_DEVICE_NAME", "Garmin Edge 1040"),
-            garmin_unit_id=os.getenv("GARMIN_UNIT_ID", "3991000001"),
+            garmin_unit_id=os.getenv("GARMIN_UNIT_ID", "3843000001"),
             previews_dir=Path(os.getenv("PREVIEWS_DIR", "/data/previews")),
             timezone=normalize_timezone_name((os.getenv("TZ") or os.getenv("TIMEZONE") or "").strip() or detect_system_timezone()),
             smart_scheduling_enabled=_bool_env("SMART_SCHEDULING_ENABLED", True),

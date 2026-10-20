@@ -14,7 +14,7 @@ GARMIN_PRODUCT_NAMES = {
     3121: "Garmin Edge 530",
     3291: "Garmin Fenix 6X Pro",
     3558: "Garmin Edge 1030 Plus",
-    3991: "Garmin Edge 1040",
+    3843: "Garmin Edge 1040",
     4063: "Garmin Edge 840",
     4064: "Garmin Edge 540",
 }
@@ -133,11 +133,11 @@ def find_detected_device(settings: Settings, device_id: str) -> GarminDevice | N
 def garmin_device_presets() -> list[GarminDevice]:
     return [
         GarminDevice(
-            id="1:3991:3991000001",
+            id="1:3843:3843000001",
             label="⭐ Garmin Edge 1040 (PREFERRED - Enables Watch Physio TrueUp Sync)",
             manufacturer_id=1,
-            product_id=3991,
-            unit_id=3991000001,
+            product_id=3843,
+            unit_id=3843000001,
             software_version=2118,
             software_version_label="21.18",
             garmin_product="edge_1040",
