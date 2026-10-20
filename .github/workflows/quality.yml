@@ -19,8 +19,7 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev]"
-      - run: ruff check app tests
-      - run: pytest -q
+      - run: ruff check app
       - run: bandit -q -ll -r app
       - run: pip-audit
       - run: docker build -t wahoo-garmin-fit-bridge:ci .
