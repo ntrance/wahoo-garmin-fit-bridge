@@ -1,6 +1,6 @@
 FROM rclone/rclone:1.75.2 AS rclone
 
-FROM python:3.12-slim-bookworm
+FROM python:3.15-slim-bookworm
 
 WORKDIR /app
 
